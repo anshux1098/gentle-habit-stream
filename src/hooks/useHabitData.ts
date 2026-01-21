@@ -1,6 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
-import { HabitFlowData, INITIAL_DATA, Habit, Completion, WeeklyReview, FocusHabit, UserSettings, ACHIEVEMENTS } from '@/types/habit';
-import { getEffectiveDate, getLastNDays, isHabitScheduledForDate, isWeekend, getWeekStart, daysSince } from '@/lib/dateUtils';
+import { 
+  HabitFlowData, 
+  INITIAL_DATA, 
+  Habit, 
+  Completion, 
+  WeeklyReview, 
+  FocusHabit, 
+  UserSettings, 
+  ACHIEVEMENTS,
+  MonthlySummary,
+  WeeklyInsight
+} from '@/types/habit';
+import { 
+  getEffectiveDate, 
+  getLastNDays, 
+  isHabitScheduledForDate, 
+  isWeekend, 
+  getWeekStart, 
+  daysSince,
+  getCurrentMonth,
+  isLastDayOfMonth,
+  getPreviousMonth
+} from '@/lib/dateUtils';
 import { toast } from 'sonner';
 
 const STORAGE_KEY = 'habit-flow-data';
@@ -418,6 +439,46 @@ export function useHabitData() {
     }
   }, [data.backups]);
 
+  // Save weekly insight
+  const saveWeeklyInsight = useCallback((insight: WeeklyInsight) => {
+    setData(prev => ({
+      ...prev,
+      weeklyInsights: [...prev.weeklyInsights.filter(i => i.weekStart !== insight.weekStart), insight],
+    }));
+  }, []);
+
+  // Get current week's insight
+  const getCurrentWeeklyInsight = useCallback((): WeeklyInsight | null => {
+    const weekStart = getWeekStart(getEffectiveDate());
+    return data.weeklyInsights?.find(i => i.weekStart === weekStart) ?? null;
+  }, [data.weeklyInsights]);
+
+  // Save monthly summary
+  const saveMonthlySummary = useCallback((summary: MonthlySummary) => {
+    setData(prev => ({
+      ...prev,
+      monthlySummaries: [...(prev.monthlySummaries || []).filter(s => s.month !== summary.month), summary],
+    }));
+  }, []);
+
+  // Get monthly summaries
+  const getMonthlySummaries = useCallback((): MonthlySummary[] => {
+    return data.monthlySummaries || [];
+  }, [data.monthlySummaries]);
+
+  // Dismiss retirement suggestion
+  const dismissRetirement = useCallback((habitId: string) => {
+    setData(prev => ({
+      ...prev,
+      dismissedRetirements: [...(prev.dismissedRetirements || []), habitId],
+    }));
+  }, []);
+
+  // Get dismissed retirements
+  const getDismissedRetirements = useCallback((): string[] => {
+    return data.dismissedRetirements || [];
+  }, [data.dismissedRetirements]);
+
   return {
     // Data
     habits: data.habits,
@@ -425,6 +486,8 @@ export function useHabitData() {
     settings: data.settings,
     unlockedAchievements: data.unlockedAchievements,
     backups: data.backups,
+    monthlySummaries: data.monthlySummaries || [],
+    weeklyInsights: data.weeklyInsights || [],
 
     // Habit management
     addHabit,
@@ -455,6 +518,14 @@ export function useHabitData() {
     getHighestStreak,
     getCompletionTrend,
     getBestPerformanceDays,
+
+    // Insights
+    saveWeeklyInsight,
+    getCurrentWeeklyInsight,
+    saveMonthlySummary,
+    getMonthlySummaries,
+    dismissRetirement,
+    getDismissedRetirements,
 
     // Data management
     exportData,

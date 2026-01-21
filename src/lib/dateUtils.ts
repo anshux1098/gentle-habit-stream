@@ -179,3 +179,63 @@ export function isHabitScheduledForDate(
       return false;
   }
 }
+
+/**
+ * Get current month as YYYY-MM
+ */
+export function getCurrentMonth(dateStr: string = getEffectiveDate()): string {
+  const [year, month] = dateStr.split('-');
+  return `${year}-${month}`;
+}
+
+/**
+ * Get first day of a month
+ */
+export function getMonthStart(monthStr: string): string {
+  return `${monthStr}-01`;
+}
+
+/**
+ * Get last day of a month
+ */
+export function getMonthEnd(monthStr: string): string {
+  const [year, month] = monthStr.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  return `${monthStr}-${String(lastDay).padStart(2, '0')}`;
+}
+
+/**
+ * Check if it's the last day of the month
+ */
+export function isLastDayOfMonth(dateStr: string = getEffectiveDate()): boolean {
+  const date = parseYYYYMMDD(dateStr);
+  const nextDay = new Date(date);
+  nextDay.setDate(date.getDate() + 1);
+  return nextDay.getMonth() !== date.getMonth();
+}
+
+/**
+ * Get all days in a month
+ */
+export function getDaysInMonth(monthStr: string): string[] {
+  const [year, month] = monthStr.split('-').map(Number);
+  const lastDay = new Date(year, month, 0).getDate();
+  const days: string[] = [];
+  
+  for (let day = 1; day <= lastDay; day++) {
+    days.push(`${monthStr}-${String(day).padStart(2, '0')}`);
+  }
+  
+  return days;
+}
+
+/**
+ * Get previous month
+ */
+export function getPreviousMonth(monthStr: string): string {
+  const [year, month] = monthStr.split('-').map(Number);
+  if (month === 1) {
+    return `${year - 1}-12`;
+  }
+  return `${year}-${String(month - 1).padStart(2, '0')}`;
+}
