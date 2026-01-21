@@ -46,6 +46,37 @@ export interface Achievement {
   unlockedAt?: string; // ISO timestamp
 }
 
+// Monthly Summary (auto-generated at end of month)
+export interface MonthlySummary {
+  month: string; // YYYY-MM
+  averageCompletion: number;
+  perfectDays: number;
+  bestPerformingDay: string;
+  habitConsistency: { habitId: string; habitName: string; completionRate: number }[];
+  createdAt: string;
+  aiInsights?: string[]; // AI-generated insights
+}
+
+// AI-generated weekly insight
+export interface WeeklyInsight {
+  weekStart: string; // YYYY-MM-DD
+  whatWentWell: string;
+  frictionPoint: string;
+  focusSuggestion: string;
+  generatedAt: string;
+}
+
+// Habit load level
+export type HabitLoadLevel = 'light' | 'balanced' | 'heavy';
+
+// Habit retirement suggestion
+export interface RetirementSuggestion {
+  habitId: string;
+  habitName: string;
+  daysSinceLastCompletion: number;
+  suggestedAt: string;
+}
+
 export interface HabitFlowData {
   habits: Habit[];
   completions: Completion[];
@@ -54,6 +85,9 @@ export interface HabitFlowData {
   settings: UserSettings;
   unlockedAchievements: string[]; // Achievement IDs
   backups: { date: string; data: string }[];
+  monthlySummaries: MonthlySummary[];
+  weeklyInsights: WeeklyInsight[];
+  dismissedRetirements: string[]; // Habit IDs the user dismissed
 }
 
 // Default settings
@@ -98,4 +132,7 @@ export const INITIAL_DATA: HabitFlowData = {
   settings: DEFAULT_SETTINGS,
   unlockedAchievements: [],
   backups: [],
+  monthlySummaries: [],
+  weeklyInsights: [],
+  dismissedRetirements: [],
 };
