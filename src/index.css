@@ -2,95 +2,162 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Habit Flow Design System
+   A calm, minimal habit tracker with low-pressure UX
+   Colors: Sage greens, warm neutrals, soft accents
 */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Warm, calm palette */
+    --background: 40 20% 98%;
+    --foreground: 40 10% 15%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 40 25% 99%;
+    --card-foreground: 40 10% 15%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 40 25% 99%;
+    --popover-foreground: 40 10% 15%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Sage green primary */
+    --primary: 145 30% 45%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Warm secondary */
+    --secondary: 40 20% 94%;
+    --secondary-foreground: 40 10% 25%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 40 15% 92%;
+    --muted-foreground: 40 10% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Soft sage accent */
+    --accent: 145 25% 92%;
+    --accent-foreground: 145 30% 30%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 145 30% 45%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Custom semantic colors */
+    --success: 145 45% 50%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 145 30% 94%;
+    
+    --warning: 35 85% 55%;
+    --warning-foreground: 0 0% 100%;
+    --warning-muted: 35 60% 94%;
+    
+    --streak: 25 80% 55%;
+    --streak-foreground: 0 0% 100%;
+    --streak-muted: 25 60% 94%;
+    
+    --focus: 200 75% 55%;
+    --focus-foreground: 0 0% 100%;
+    --focus-muted: 200 50% 94%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Habit completion states */
+    --completed: 145 45% 50%;
+    --pending: 40 15% 75%;
+    --missed: 0 50% 60%;
 
-    --sidebar-primary: 240 5.9% 10%;
+    /* Progress gradients */
+    --gradient-success: linear-gradient(135deg, hsl(145 45% 55%), hsl(145 40% 45%));
+    --gradient-streak: linear-gradient(135deg, hsl(25 85% 60%), hsl(35 80% 55%));
+    --gradient-focus: linear-gradient(135deg, hsl(200 75% 55%), hsl(180 60% 50%));
+    --gradient-calm: linear-gradient(135deg, hsl(40 20% 98%), hsl(145 20% 96%));
 
-    --sidebar-primary-foreground: 0 0% 98%;
+    /* Shadows */
+    --shadow-sm: 0 1px 2px hsl(40 10% 15% / 0.04);
+    --shadow-md: 0 4px 12px hsl(40 10% 15% / 0.06);
+    --shadow-lg: 0 8px 24px hsl(40 10% 15% / 0.08);
+    --shadow-glow: 0 0 20px hsl(145 30% 45% / 0.15);
 
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar */
+    --sidebar-background: 40 25% 97%;
+    --sidebar-foreground: 40 10% 25%;
+    --sidebar-primary: 145 30% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 145 25% 92%;
+    --sidebar-accent-foreground: 145 30% 30%;
+    --sidebar-border: 40 15% 90%;
+    --sidebar-ring: 145 30% 45%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
+    --background: 40 10% 8%;
+    --foreground: 40 10% 92%;
 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
+    --card: 40 10% 10%;
+    --card-foreground: 40 10% 92%;
 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 40 10% 10%;
+    --popover-foreground: 40 10% 92%;
 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --primary: 145 35% 55%;
+    --primary-foreground: 40 10% 8%;
 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 40 10% 15%;
+    --secondary-foreground: 40 10% 85%;
 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 40 10% 18%;
+    --muted-foreground: 40 10% 60%;
 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 145 20% 18%;
+    --accent-foreground: 145 35% 75%;
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 55% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --border: 40 10% 20%;
+    --input: 40 10% 20%;
+    --ring: 145 35% 55%;
+
+    /* Custom semantic colors - dark mode */
+    --success: 145 40% 55%;
+    --success-foreground: 40 10% 8%;
+    --success-muted: 145 25% 18%;
+    
+    --warning: 35 75% 55%;
+    --warning-foreground: 40 10% 8%;
+    --warning-muted: 35 40% 18%;
+    
+    --streak: 25 70% 55%;
+    --streak-foreground: 40 10% 8%;
+    --streak-muted: 25 40% 18%;
+    
+    --focus: 200 65% 55%;
+    --focus-foreground: 40 10% 8%;
+    --focus-muted: 200 35% 18%;
+
+    --completed: 145 40% 55%;
+    --pending: 40 10% 35%;
+    --missed: 0 45% 50%;
+
+    --gradient-success: linear-gradient(135deg, hsl(145 40% 50%), hsl(145 35% 40%));
+    --gradient-streak: linear-gradient(135deg, hsl(25 75% 55%), hsl(35 70% 50%));
+    --gradient-focus: linear-gradient(135deg, hsl(200 65% 50%), hsl(180 50% 45%));
+    --gradient-calm: linear-gradient(135deg, hsl(40 10% 10%), hsl(145 15% 12%));
+
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 20px hsl(145 35% 55% / 0.2);
+
+    --sidebar-background: 40 10% 10%;
+    --sidebar-foreground: 40 10% 85%;
+    --sidebar-primary: 145 35% 55%;
+    --sidebar-primary-foreground: 40 10% 8%;
+    --sidebar-accent: 145 20% 18%;
+    --sidebar-accent-foreground: 145 35% 75%;
+    --sidebar-border: 40 10% 18%;
+    --sidebar-ring: 145 35% 55%;
   }
 }
 
@@ -100,6 +167,128 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+@layer components {
+  /* Habit checkbox animation */
+  .habit-checkbox {
+    @apply relative transition-all duration-300;
+  }
+
+  .habit-checkbox.checked {
+    @apply scale-105;
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+
+  .card-hover:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  /* Progress ring */
+  .progress-ring {
+    transform: rotate(-90deg);
+  }
+
+  .progress-ring circle {
+    transition: stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Streak flame animation */
+  @keyframes flame-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.9; }
+  }
+
+  .streak-flame {
+    animation: flame-pulse 2s ease-in-out infinite;
+  }
+
+  /* Gentle fade-in */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
+  /* Completion celebration */
+  @keyframes celebrate {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .celebrate {
+    animation: celebrate 0.4s ease-out;
+  }
+
+  /* Soft pulse for focus habit */
+  @keyframes soft-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--focus) / 0.3); }
+    50% { box-shadow: 0 0 0 8px hsl(var(--focus) / 0); }
+  }
+
+  .focus-pulse {
+    animation: soft-pulse 3s ease-in-out infinite;
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    background: hsl(var(--background) / 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--gradient-success);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@layer utilities {
+  /* Safe area insets for mobile */
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
   }
 }
