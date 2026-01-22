@@ -19,10 +19,11 @@ export default function ReviewPage() {
     getCurrentReview, 
     getHabitsForDate,
     saveWeeklyInsight,
-    getCurrentWeeklyInsight
+    getCurrentWeeklyInsight,
+    calculateStreak
   } = useHabits();
   
-  const { isLoadingWeekly, generateWeeklyInsight } = useInsights(habits, completions, getHabitsForDate);
+  const { isLoadingWeekly, generateWeeklyInsight } = useInsights(habits, completions, getHabitsForDate, calculateStreak);
   
   const today = getEffectiveDate();
   const isSundayDay = isSunday(today);

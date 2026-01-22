@@ -1,7 +1,19 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import type { Habit, Completion, WeeklyInsight, MonthlySummary } from '@/types/habit';
+import type { 
+  Habit, 
+  Completion, 
+  WeeklyInsight, 
+  MonthlySummary, 
+  UserProfile,
+  HabitLoadLevel,
+  HabitLoadExplanation,
+  RetirementSuggestion,
+  MonthlyInsightItem,
+  InsightHistoryEntry,
+  InsightFeedback
+} from '@/types/habit';
 import { 
   getEffectiveDate, 
   getWeekStart, 
@@ -9,12 +21,22 @@ import {
   isWeekend, 
   isHabitScheduledForDate,
   getDaysInMonth,
-  getCurrentMonth,
-  getDayName
+  getDayName,
+  daysSince
 } from '@/lib/dateUtils';
 
+interface EnhancedHabitInfo {
+  id: string;
+  name: string;
+  type: 'daily' | 'weekday' | 'weekend';
+  active: boolean;
+  ageInDays: number;
+  currentStreak: number;
+  completionRate: number;
+}
+
 interface InsightData {
-  habits: Habit[];
+  habits: EnhancedHabitInfo[];
   completions: Completion[];
   weekdayCompletionRate: number;
   weekendCompletionRate: number;
@@ -24,12 +46,22 @@ interface InsightData {
   bestDay: string;
   worstDay: string;
   inactiveHabits: string[];
+  // Enhanced context
+  userProfile: UserProfile;
+  totalHabitCount: number;
+  habitsAddedThisMonth: number;
+  averageHabitAge: number;
+  longestStreak: number;
+  dropOffPatterns: Array<{ habitName: string; dropOffDay: number }>;
+  hasInsufficientData: boolean;
+  daysTracked: number;
 }
 
 export function useInsights(
   habits: Habit[],
   completions: Completion[],
-  getHabitsForDate: (date: string) => Habit[]
+  getHabitsForDate: (date: string) => Habit[],
+  calculateStreak: (habitId: string) => number
 ) {
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(false);
   const [isLoadingMonthly, setIsLoadingMonthly] = useState(false);
@@ -50,11 +82,147 @@ export function useInsights(
   }, [habits, completions]);
 
   /**
-   * Prepare data for AI insight generation
+   * Determine user profile based on behavior patterns
+   */
+  const getUserProfile = useCallback((): UserProfile => {
+    const activeHabits = habits.filter(h => h.active);
+    if (activeHabits.length === 0) return 'beginner';
+
+    const last14Days = getLastNDays(14);
+    let totalCompletion = 0;
+    let daysWithHabits = 0;
+
+    for (const date of last14Days) {
+      const habitsForDate = activeHabits.filter(h => isHabitScheduledForDate(h.type, date));
+      if (habitsForDate.length > 0) {
+        totalCompletion += getDailyCompletion(date);
+        daysWithHabits++;
+      }
+    }
+
+    const avgCompletion = daysWithHabits > 0 ? totalCompletion / daysWithHabits : 0;
+    const oldestHabitAge = Math.max(...activeHabits.map(h => daysSince(h.createdAt.split('T')[0])));
+
+    // Beginner: new habits (< 14 days old) or few habits
+    if (oldestHabitAge < 14 || activeHabits.length <= 2) {
+      return 'beginner';
+    }
+
+    // Struggling: low completion rate
+    if (avgCompletion < 50) {
+      return 'struggling';
+    }
+
+    // Consistent: good completion rate
+    return 'consistent';
+  }, [habits, completions, getDailyCompletion]);
+
+  /**
+   * Detect drop-off patterns (habits that tend to fail after X days)
+   */
+  const getDropOffPatterns = useCallback((): Array<{ habitName: string; dropOffDay: number }> => {
+    const patterns: Array<{ habitName: string; dropOffDay: number }> = [];
+    
+    for (const habit of habits.filter(h => h.active)) {
+      const last30Days = getLastNDays(30);
+      const scheduledDays = last30Days.filter(d => isHabitScheduledForDate(habit.type, d));
+      
+      // Look for streaks that break at consistent points
+      let streakBreaks: number[] = [];
+      let currentStreak = 0;
+      
+      for (const date of scheduledDays.reverse()) {
+        const completion = completions.find(c => c.habitId === habit.id && c.date === date && c.completed);
+        if (completion) {
+          currentStreak++;
+        } else if (currentStreak > 0 && currentStreak <= 7) {
+          streakBreaks.push(currentStreak);
+          currentStreak = 0;
+        } else {
+          currentStreak = 0;
+        }
+      }
+
+      // If we see a pattern of breaking at day 3-5
+      if (streakBreaks.length >= 2) {
+        const avgBreak = streakBreaks.reduce((a, b) => a + b, 0) / streakBreaks.length;
+        if (avgBreak >= 3 && avgBreak <= 5) {
+          patterns.push({ habitName: habit.name, dropOffDay: Math.round(avgBreak) });
+        }
+      }
+    }
+
+    return patterns;
+  }, [habits, completions]);
+
+  /**
+   * Get habit load level and explanation
+   */
+  const getHabitLoadInfo = useCallback((): { level: HabitLoadLevel; explanation?: HabitLoadExplanation } => {
+    const activeHabits = habits.filter(h => h.active);
+    const habitCount = activeHabits.length;
+    
+    if (habitCount === 0) return { level: 'light' };
+
+    const last7Days = getLastNDays(7);
+    let totalCompletion = 0;
+    let daysWithHabits = 0;
+
+    for (const date of last7Days) {
+      const habitsForDate = activeHabits.filter(h => isHabitScheduledForDate(h.type, date));
+      if (habitsForDate.length > 0) {
+        totalCompletion += getDailyCompletion(date);
+        daysWithHabits++;
+      }
+    }
+
+    const avgCompletion = daysWithHabits > 0 ? totalCompletion / daysWithHabits : 0;
+
+    // Determine level and reason
+    const tooManyHabits = habitCount >= 7;
+    const lowCompletion = avgCompletion < 50;
+
+    if (tooManyHabits && lowCompletion) {
+      return {
+        level: 'heavy',
+        explanation: {
+          reason: 'both',
+          suggestion: 'pause',
+          message: `You have ${habitCount} habits with ${avgCompletion.toFixed(0)}% completion. Consider pausing 1-2 habits to rebuild momentum.`
+        }
+      };
+    } else if (tooManyHabits) {
+      return {
+        level: 'heavy',
+        explanation: {
+          reason: 'too_many_habits',
+          suggestion: 'reduce_frequency',
+          message: `Managing ${habitCount} habits can be challenging. You might consider converting some daily habits to weekday-only.`
+        }
+      };
+    } else if (lowCompletion && habitCount > 0) {
+      return {
+        level: 'heavy',
+        explanation: {
+          reason: 'low_completion',
+          suggestion: 'lower_goals',
+          message: `Your completion rate is ${avgCompletion.toFixed(0)}%. It might help to temporarily focus on just 2-3 core habits.`
+        }
+      };
+    } else if (habitCount <= 3 || avgCompletion >= 80) {
+      return { level: 'light' };
+    }
+
+    return { level: 'balanced' };
+  }, [habits, completions, getDailyCompletion]);
+
+  /**
+   * Prepare enhanced data for AI insight generation
    */
   const prepareInsightData = useCallback((type: 'weekly' | 'monthly'): InsightData => {
     const today = getEffectiveDate();
     const days = type === 'weekly' ? getLastNDays(7) : getLastNDays(30);
+    const activeHabits = habits.filter(h => h.active);
     
     let weekdayTotal = 0;
     let weekdayCount = 0;
@@ -62,13 +230,13 @@ export function useInsights(
     let weekendCount = 0;
     let perfectDays = 0;
 
-    // Calculate day-by-day stats
+    // Day stats for best/worst performing day
     const dayStats: { [key: string]: number[] } = {};
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayNames.forEach(d => dayStats[d] = []);
 
     for (const date of days) {
-      const habitsForDate = habits.filter(h => h.active && isHabitScheduledForDate(h.type, date));
+      const habitsForDate = activeHabits.filter(h => isHabitScheduledForDate(h.type, date));
       if (habitsForDate.length === 0) continue;
 
       const percentage = getDailyCompletion(date);
@@ -83,10 +251,7 @@ export function useInsights(
         weekdayCount++;
       }
 
-      // Check if perfect day
-      if (percentage === 100) {
-        perfectDays++;
-      }
+      if (percentage === 100) perfectDays++;
     }
 
     // Find best and worst days
@@ -101,9 +266,34 @@ export function useInsights(
     const bestDay = sortedDays.find(d => d.avg > 0)?.day || 'N/A';
     const worstDay = sortedDays.reverse().find(d => d.avg > 0)?.day || 'N/A';
 
-    // Find inactive habits (no completion in 30 days)
+    // Enhanced habit info with streaks and age
+    const enhancedHabits: EnhancedHabitInfo[] = activeHabits.map(h => {
+      const ageInDays = daysSince(h.createdAt.split('T')[0]);
+      const currentStreak = calculateStreak(h.id);
+      
+      // Calculate completion rate for this habit
+      const scheduledDays = days.filter(d => isHabitScheduledForDate(h.type, d));
+      const completedDays = scheduledDays.filter(d => 
+        completions.find(c => c.habitId === h.id && c.date === d && c.completed)
+      );
+      const completionRate = scheduledDays.length > 0 
+        ? (completedDays.length / scheduledDays.length) * 100 
+        : 0;
+
+      return {
+        id: h.id,
+        name: h.name,
+        type: h.type,
+        active: h.active,
+        ageInDays,
+        currentStreak,
+        completionRate
+      };
+    });
+
+    // Find inactive habits
     const inactiveHabits: string[] = [];
-    for (const habit of habits.filter(h => h.active)) {
+    for (const habit of activeHabits) {
       const last30 = getLastNDays(30);
       const hasCompletion = last30.some(date => 
         completions.find(c => c.habitId === habit.id && c.date === date && c.completed)
@@ -113,15 +303,9 @@ export function useInsights(
       }
     }
 
-    // Calculate monthly average
-    const allPercentages = days.map(getDailyCompletion).filter(p => {
-      const date = days[days.indexOf(String(p))];
-      const habitsForDate = habits.filter(h => h.active && isHabitScheduledForDate(h.type, days[0]));
-      return habitsForDate.length > 0;
-    });
-
+    // Calculate valid days and monthly average
     const validDays = days.filter(date => {
-      const habitsForDate = habits.filter(h => h.active && isHabitScheduledForDate(h.type, date));
+      const habitsForDate = activeHabits.filter(h => isHabitScheduledForDate(h.type, date));
       return habitsForDate.length > 0;
     });
 
@@ -129,8 +313,28 @@ export function useInsights(
       ? validDays.map(getDailyCompletion).reduce((a, b) => a + b, 0) / validDays.length
       : 0;
 
+    // Habits added this month
+    const currentMonth = today.substring(0, 7);
+    const habitsAddedThisMonth = habits.filter(h => 
+      h.createdAt.startsWith(currentMonth)
+    ).length;
+
+    // Average habit age
+    const averageHabitAge = activeHabits.length > 0
+      ? activeHabits.reduce((sum, h) => sum + daysSince(h.createdAt.split('T')[0]), 0) / activeHabits.length
+      : 0;
+
+    // Longest streak
+    const longestStreak = activeHabits.length > 0
+      ? Math.max(0, ...activeHabits.map(h => calculateStreak(h.id)))
+      : 0;
+
+    // Determine if we have insufficient data
+    const daysTracked = validDays.length;
+    const hasInsufficientData = daysTracked < 7;
+
     return {
-      habits,
+      habits: enhancedHabits,
       completions,
       weekdayCompletionRate: weekdayCount > 0 ? weekdayTotal / weekdayCount : 0,
       weekendCompletionRate: weekendCount > 0 ? weekendTotal / weekendCount : 0,
@@ -140,8 +344,16 @@ export function useInsights(
       bestDay,
       worstDay,
       inactiveHabits,
+      userProfile: getUserProfile(),
+      totalHabitCount: activeHabits.length,
+      habitsAddedThisMonth,
+      averageHabitAge,
+      longestStreak,
+      dropOffPatterns: getDropOffPatterns(),
+      hasInsufficientData,
+      daysTracked
     };
-  }, [habits, completions, getDailyCompletion]);
+  }, [habits, completions, getDailyCompletion, getUserProfile, getDropOffPatterns, calculateStreak]);
 
   /**
    * Generate weekly insight via AI
@@ -167,6 +379,7 @@ export function useInsights(
         whatWentWell: response.insight.whatWentWell || '',
         frictionPoint: response.insight.frictionPoint || '',
         focusSuggestion: response.insight.focusSuggestion || '',
+        keyPhrases: response.insight.keyPhrases || [],
         generatedAt: new Date().toISOString(),
       };
 
@@ -195,7 +408,7 @@ export function useInsights(
   /**
    * Generate monthly insight via AI
    */
-  const generateMonthlyInsight = useCallback(async (): Promise<string[] | null> => {
+  const generateMonthlyInsight = useCallback(async (): Promise<MonthlyInsightItem[] | null> => {
     setIsLoadingMonthly(true);
     
     try {
@@ -211,7 +424,15 @@ export function useInsights(
         throw new Error(response.error || 'Failed to generate insight');
       }
 
-      const insights = response.insight.insights || [];
+      // Handle both old string[] format and new object format
+      const rawInsights = response.insight.insights || [];
+      const insights: MonthlyInsightItem[] = rawInsights.map((item: string | MonthlyInsightItem) => {
+        if (typeof item === 'string') {
+          return { type: 'observation' as const, text: item };
+        }
+        return item;
+      });
+
       toast.success('Monthly insight generated!');
       return insights;
 
@@ -241,7 +462,6 @@ export function useInsights(
     const days = getDaysInMonth(month);
     const today = getEffectiveDate();
     
-    // Only include days up to today
     const relevantDays = days.filter(d => d <= today);
     if (relevantDays.length === 0) return null;
 
@@ -249,12 +469,10 @@ export function useInsights(
     let daysWithHabits = 0;
     let perfectDays = 0;
 
-    // Day stats for best performing day
     const dayStats: { [key: string]: number[] } = {};
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     dayNames.forEach(d => dayStats[d] = []);
 
-    // Habit consistency tracking
     const habitStats: { [habitId: string]: { scheduled: number; completed: number } } = {};
 
     for (const date of relevantDays) {
@@ -270,7 +488,6 @@ export function useInsights(
 
       if (percentage === 100) perfectDays++;
 
-      // Track per-habit stats
       for (const habit of habitsForDate) {
         if (!habitStats[habit.id]) {
           habitStats[habit.id] = { scheduled: 0, completed: 0 };
@@ -286,7 +503,6 @@ export function useInsights(
 
     if (daysWithHabits === 0) return null;
 
-    // Calculate best performing day
     const dayAverages = dayNames.map(day => ({
       day,
       avg: dayStats[day].length > 0 
@@ -295,7 +511,6 @@ export function useInsights(
     }));
     const bestDay = dayAverages.sort((a, b) => b.avg - a.avg)[0]?.day || 'N/A';
 
-    // Calculate habit consistency
     const habitConsistency = habits
       .filter(h => h.active && habitStats[h.id])
       .map(h => ({
@@ -318,18 +533,12 @@ export function useInsights(
   }, [habits, completions, getDailyCompletion]);
 
   /**
-   * Get retirement suggestions (habits inactive for 30+ days)
+   * Get retirement suggestions with enhanced reasons
    */
-  const getRetirementSuggestions = useCallback(() => {
-    const suggestions: Array<{
-      habitId: string;
-      habitName: string;
-      daysSinceLastCompletion: number;
-      suggestedAt: string;
-    }> = [];
+  const getRetirementSuggestions = useCallback((): RetirementSuggestion[] => {
+    const suggestions: RetirementSuggestion[] = [];
 
     for (const habit of habits.filter(h => h.active)) {
-      // Find last completion
       const habitCompletions = completions
         .filter(c => c.habitId === habit.id && c.completed)
         .sort((a, b) => b.date.localeCompare(a.date));
@@ -337,7 +546,6 @@ export function useInsights(
       const lastCompletion = habitCompletions[0]?.date;
       
       if (!lastCompletion) {
-        // Check if habit is older than 30 days
         const createdDate = new Date(habit.createdAt);
         const now = new Date();
         const daysSinceCreation = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -348,6 +556,7 @@ export function useInsights(
             habitName: habit.name,
             daysSinceLastCompletion: daysSinceCreation,
             suggestedAt: new Date().toISOString(),
+            reason: `This habit was created ${daysSinceCreation} days ago but hasn't been completed yet.`
           });
         }
       } else {
@@ -361,6 +570,7 @@ export function useInsights(
             habitName: habit.name,
             daysSinceLastCompletion: daysSince,
             suggestedAt: new Date().toISOString(),
+            reason: `Last completed ${daysSince} days ago. It might not fit your current routine.`
           });
         }
       }
@@ -369,6 +579,22 @@ export function useInsights(
     return suggestions;
   }, [habits, completions]);
 
+  /**
+   * Create insight history entry
+   */
+  const createInsightHistoryEntry = useCallback((
+    type: 'weekly' | 'monthly',
+    summary: string
+  ): InsightHistoryEntry => {
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      weekStart: getWeekStart(getEffectiveDate()),
+      type,
+      summary,
+      createdAt: new Date().toISOString()
+    };
+  }, []);
+
   return {
     isLoadingWeekly,
     isLoadingMonthly,
@@ -376,5 +602,9 @@ export function useInsights(
     generateMonthlyInsight,
     generateMonthlySummary,
     getRetirementSuggestions,
+    getUserProfile,
+    getHabitLoadInfo,
+    getDropOffPatterns,
+    createInsightHistoryEntry,
   };
 }

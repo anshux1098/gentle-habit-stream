@@ -1,12 +1,40 @@
 import { motion } from 'framer-motion';
-import { Calendar, TrendingUp, Star, Sparkles, Loader2 } from 'lucide-react';
-import type { MonthlySummary } from '@/types/habit';
+import { Calendar, TrendingUp, Star, Sparkles, Loader2, Lightbulb, AlertCircle, Target } from 'lucide-react';
+import type { MonthlySummary, MonthlyInsightItem } from '@/types/habit';
 import { getMonthName } from '@/lib/dateUtils';
 
 interface MonthlySummaryCardProps {
   summary: MonthlySummary;
   isGeneratingInsight?: boolean;
   onGenerateInsight?: () => void;
+}
+
+const insightTypeConfig: Record<MonthlyInsightItem['type'], { icon: typeof Lightbulb; color: string }> = {
+  observation: { icon: Lightbulb, color: 'text-primary' },
+  positive: { icon: Star, color: 'text-success' },
+  recommendation: { icon: Target, color: 'text-warning' },
+};
+
+function HighlightedInsightText({ item }: { item: MonthlyInsightItem }) {
+  const text = item.text;
+  const highlight = item.highlight;
+  
+  if (!highlight) {
+    return <span>{text}</span>;
+  }
+
+  const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, i) => 
+        part.toLowerCase() === highlight.toLowerCase() ? (
+          <span key={i} className="font-medium text-foreground">{part}</span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </>
+  );
 }
 
 export function MonthlySummaryCard({ 
@@ -17,6 +45,14 @@ export function MonthlySummaryCard({
   // Parse month for display
   const [year, month] = summary.month.split('-');
   const displayMonth = getMonthName(`${summary.month}-01`);
+
+  // Handle both old string[] format and new MonthlyInsightItem[] format
+  const normalizedInsights: MonthlyInsightItem[] = (summary.aiInsights || []).map((item) => {
+    if (typeof item === 'string') {
+      return { type: 'observation' as const, text: item };
+    }
+    return item;
+  });
 
   return (
     <motion.div
@@ -88,21 +124,29 @@ export function MonthlySummaryCard({
       )}
 
       {/* AI Insights */}
-      {summary.aiInsights && summary.aiInsights.length > 0 ? (
+      {normalizedInsights.length > 0 ? (
         <div className="space-y-2 pt-2 border-t border-border">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-accent-foreground" />
             <h4 className="text-xs font-medium text-muted-foreground">AI Insights</h4>
           </div>
-          <ul className="space-y-1.5">
-            {summary.aiInsights.map((insight, index) => (
-              <li 
-                key={index} 
-                className="text-sm text-foreground/80 pl-3 border-l-2 border-accent"
-              >
-                {insight}
-              </li>
-            ))}
+          <ul className="space-y-2">
+            {normalizedInsights.map((insight, index) => {
+              const config = insightTypeConfig[insight.type] || insightTypeConfig.observation;
+              const Icon = config.icon;
+              
+              return (
+                <li 
+                  key={index} 
+                  className="text-sm text-foreground/80 pl-3 border-l-2 border-accent flex items-start gap-2"
+                >
+                  <Icon className={`w-3.5 h-3.5 mt-0.5 flex-shrink-0 ${config.color}`} />
+                  <span>
+                    <HighlightedInsightText item={insight} />
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : onGenerateInsight ? (
