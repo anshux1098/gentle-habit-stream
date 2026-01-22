@@ -54,7 +54,14 @@ export interface MonthlySummary {
   bestPerformingDay: string;
   habitConsistency: { habitId: string; habitName: string; completionRate: number }[];
   createdAt: string;
-  aiInsights?: string[]; // AI-generated insights
+  aiInsights?: MonthlyInsightItem[]; // Enhanced AI-generated insights
+}
+
+// Enhanced monthly insight item with type and highlight
+export interface MonthlyInsightItem {
+  type: 'observation' | 'positive' | 'recommendation';
+  text: string;
+  highlight?: string;
 }
 
 // AI-generated weekly insight
@@ -63,11 +70,22 @@ export interface WeeklyInsight {
   whatWentWell: string;
   frictionPoint: string;
   focusSuggestion: string;
+  keyPhrases?: string[]; // Key phrases to highlight
   generatedAt: string;
 }
 
 // Habit load level
 export type HabitLoadLevel = 'light' | 'balanced' | 'heavy';
+
+// Habit load explanation
+export interface HabitLoadExplanation {
+  reason: 'too_many_habits' | 'low_completion' | 'both';
+  suggestion: 'pause' | 'reduce_frequency' | 'lower_goals';
+  message: string;
+}
+
+// User behavior profile for personalized insights
+export type UserProfile = 'beginner' | 'consistent' | 'struggling';
 
 // Habit retirement suggestion
 export interface RetirementSuggestion {
@@ -75,6 +93,20 @@ export interface RetirementSuggestion {
   habitName: string;
   daysSinceLastCompletion: number;
   suggestedAt: string;
+  reason: string;
+}
+
+// Insight feedback for history
+export type InsightFeedback = 'helpful' | 'neutral' | 'not_useful';
+
+// Historical insight entry
+export interface InsightHistoryEntry {
+  id: string;
+  weekStart: string;
+  type: 'weekly' | 'monthly';
+  summary: string;
+  feedback?: InsightFeedback;
+  createdAt: string;
 }
 
 export interface HabitFlowData {
@@ -88,6 +120,8 @@ export interface HabitFlowData {
   monthlySummaries: MonthlySummary[];
   weeklyInsights: WeeklyInsight[];
   dismissedRetirements: string[]; // Habit IDs the user dismissed
+  insightHistory: InsightHistoryEntry[]; // Last 4 weeks of insights
+  insightFeedback: { insightId: string; feedback: InsightFeedback }[]; // User feedback on insights
 }
 
 // Default settings
@@ -135,4 +169,6 @@ export const INITIAL_DATA: HabitFlowData = {
   monthlySummaries: [],
   weeklyInsights: [],
   dismissedRetirements: [],
+  insightHistory: [],
+  insightFeedback: [],
 };
