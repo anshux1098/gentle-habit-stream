@@ -12,7 +12,12 @@ import type {
   RetirementSuggestion,
   MonthlyInsightItem,
   InsightHistoryEntry,
-  InsightFeedback
+  InsightFeedback,
+  InsightOutcome,
+  InsightAdaptation,
+  MomentumSignal,
+  BurnoutIndicator,
+  DailyReflection
 } from '@/types/habit';
 import { 
   getEffectiveDate, 
@@ -55,13 +60,21 @@ interface InsightData {
   dropOffPatterns: Array<{ habitName: string; dropOffDay: number }>;
   hasInsufficientData: boolean;
   daysTracked: number;
+  // New: adaptation and reflection context
+  insightAdaptation: InsightAdaptation;
+  recentReflections: DailyReflection[];
+  burnoutSignals: { type: string; count: number }[];
+  momentumMetrics: { recoverySpeed: number; consistencyScore: number };
 }
 
 export function useInsights(
   habits: Habit[],
   completions: Completion[],
   getHabitsForDate: (date: string) => Habit[],
-  calculateStreak: (habitId: string) => number
+  calculateStreak: (habitId: string) => number,
+  insightOutcomes: { insightId: string; outcome: InsightOutcome }[] = [],
+  dailyReflections: DailyReflection[] = [],
+  habitEditHistory: { habitId: string; editedAt: string }[] = []
 ) {
   const [isLoadingWeekly, setIsLoadingWeekly] = useState(false);
   const [isLoadingMonthly, setIsLoadingMonthly] = useState(false);
@@ -154,6 +167,197 @@ export function useInsights(
 
     return patterns;
   }, [habits, completions]);
+
+  /**
+   * Determine insight adaptation level based on outcome tracking
+   */
+  const getInsightAdaptation = useCallback((): InsightAdaptation => {
+    if (insightOutcomes.length < 3) return 'standard';
+    
+    const recentOutcomes = insightOutcomes.slice(-10);
+    const ignoredCount = recentOutcomes.filter(o => o.outcome === 'no_change').length;
+    const followedCount = recentOutcomes.filter(o => o.outcome === 'habit_paused' || o.outcome === 'frequency_reduced').length;
+    
+    // If user ignores recommendations often, simplify
+    if (ignoredCount >= 7) return 'simplified';
+    // If user follows recommendations, allow more advanced suggestions
+    if (followedCount >= 5) return 'advanced';
+    
+    return 'standard';
+  }, [insightOutcomes]);
+
+  /**
+   * Calculate momentum metrics (recovery speed and consistency)
+   */
+  const getMomentumMetrics = useCallback((): { recoverySpeed: number; consistencyScore: number } => {
+    const last14Days = getLastNDays(14);
+    let recoveryInstances = 0;
+    let totalRecoveryDays = 0;
+    let missedDays = 0;
+    let totalScheduledDays = 0;
+    let completedDays = 0;
+
+    for (const habit of habits.filter(h => h.active)) {
+      let inMissedStreak = false;
+      let missedStreakLength = 0;
+
+      for (const date of last14Days.reverse()) {
+        if (!isHabitScheduledForDate(habit.type, date)) continue;
+        totalScheduledDays++;
+        
+        const isCompleted = completions.find(c => c.habitId === habit.id && c.date === date && c.completed);
+        
+        if (isCompleted) {
+          completedDays++;
+          if (inMissedStreak && missedStreakLength > 0) {
+            recoveryInstances++;
+            totalRecoveryDays += missedStreakLength;
+          }
+          inMissedStreak = false;
+          missedStreakLength = 0;
+        } else {
+          missedDays++;
+          inMissedStreak = true;
+          missedStreakLength++;
+        }
+      }
+    }
+
+    // Recovery speed: lower is better (average days to recover)
+    const recoverySpeed = recoveryInstances > 0 ? totalRecoveryDays / recoveryInstances : 0;
+    // Consistency score: percentage of scheduled days completed
+    const consistencyScore = totalScheduledDays > 0 ? (completedDays / totalScheduledDays) * 100 : 0;
+
+    return { recoverySpeed, consistencyScore };
+  }, [habits, completions]);
+
+  /**
+   * Detect burnout signals
+   */
+  const detectBurnoutSignals = useCallback((): BurnoutIndicator[] => {
+    const indicators: BurnoutIndicator[] = [];
+    const last14Days = getLastNDays(14);
+    const activeHabits = habits.filter(h => h.active);
+
+    // 1. Same-day failures: days where multiple habits were missed
+    let sameDayFailures = 0;
+    for (const date of last14Days) {
+      const habitsForDate = activeHabits.filter(h => isHabitScheduledForDate(h.type, date));
+      const completedForDate = habitsForDate.filter(h => 
+        completions.find(c => c.habitId === h.id && c.date === date && c.completed)
+      );
+      const missedCount = habitsForDate.length - completedForDate.length;
+      if (missedCount >= 2 && habitsForDate.length >= 2) {
+        sameDayFailures++;
+      }
+    }
+    
+    if (sameDayFailures >= 4) {
+      indicators.push({
+        type: 'same_day_failures',
+        severity: sameDayFailures >= 7 ? 'concerning' : 'moderate',
+        message: "Some days have been challenging, with multiple habits missed together.",
+        suggestion: "Consider identifying what makes those days difficult. Maybe reducing your daily commitment could help.",
+        detectedAt: new Date().toISOString()
+      });
+    }
+
+    // 2. Declining completion: compare first 7 days vs last 7 days
+    const first7 = last14Days.slice(0, 7);
+    const last7 = last14Days.slice(7);
+    
+    const getAvgCompletion = (days: string[]) => {
+      let total = 0;
+      let count = 0;
+      for (const date of days) {
+        const completion = getDailyCompletion(date);
+        if (completion >= 0) { total += completion; count++; }
+      }
+      return count > 0 ? total / count : 0;
+    };
+
+    const firstWeekAvg = getAvgCompletion(first7);
+    const lastWeekAvg = getAvgCompletion(last7);
+    
+    if (firstWeekAvg > 60 && lastWeekAvg < firstWeekAvg - 20) {
+      indicators.push({
+        type: 'declining_completion',
+        severity: lastWeekAvg < 40 ? 'concerning' : 'mild',
+        message: "Your completion rate has been gradually declining.",
+        suggestion: "This might be a sign to step back and simplify. What if you focused on just your most important habit for now?",
+        detectedAt: new Date().toISOString()
+      });
+    }
+
+    // 3. Excessive edits: many habit edits in recent weeks
+    const recentEdits = habitEditHistory.filter(e => 
+      daysSince(e.editedAt.split('T')[0]) <= 14
+    ).length;
+    
+    if (recentEdits >= 5) {
+      indicators.push({
+        type: 'excessive_edits',
+        severity: recentEdits >= 8 ? 'moderate' : 'mild',
+        message: "You've been adjusting your habits frequently lately.",
+        suggestion: "It's okay to experiment, but sometimes stability helps build momentum. Consider keeping your setup stable for a week.",
+        detectedAt: new Date().toISOString()
+      });
+    }
+
+    return indicators;
+  }, [habits, completions, habitEditHistory, getDailyCompletion]);
+
+  /**
+   * Generate momentum signals
+   */
+  const generateMomentumSignals = useCallback((): MomentumSignal[] => {
+    const signals: MomentumSignal[] = [];
+    const { recoverySpeed, consistencyScore } = getMomentumMetrics();
+    const activeHabits = habits.filter(h => h.active);
+
+    // Recovery signal
+    if (recoverySpeed > 0 && recoverySpeed <= 2) {
+      signals.push({
+        type: 'recovery',
+        message: "You're bouncing back quickly after missed days. That resilience is a key part of long-term success.",
+        metric: recoverySpeed,
+        generatedAt: new Date().toISOString()
+      });
+    }
+
+    // Sustained consistency signal (not just streaks)
+    if (consistencyScore >= 70) {
+      signals.push({
+        type: 'consistency',
+        message: `You've been consistently showing up — ${consistencyScore.toFixed(0)}% of scheduled days over the past two weeks.`,
+        metric: consistencyScore,
+        generatedAt: new Date().toISOString()
+      });
+    }
+
+    // Identity shift for habits with high streaks
+    const strongHabits = activeHabits.filter(h => calculateStreak(h.id) >= 14);
+    if (strongHabits.length > 0) {
+      const habitName = strongHabits[0].name;
+      signals.push({
+        type: 'identity_shift',
+        message: `"${habitName}" has become part of your routine. You're becoming someone who does this regularly.`,
+        habitName,
+        generatedAt: new Date().toISOString()
+      });
+    }
+
+    return signals;
+  }, [habits, calculateStreak, getMomentumMetrics]);
+
+  /**
+   * Get confidence level based on data volume
+   */
+  const getConfidenceLevel = useCallback((daysTracked: number): 'low' | 'medium' | 'high' => {
+    if (daysTracked < 7) return 'low';
+    if (daysTracked < 21) return 'medium';
+    return 'high';
+  }, []);
 
   /**
    * Get habit load level and explanation
@@ -333,6 +537,15 @@ export function useInsights(
     const daysTracked = validDays.length;
     const hasInsufficientData = daysTracked < 7;
 
+    // Get recent reflections (last 7 days)
+    const recentReflections = dailyReflections.filter(r => 
+      daysSince(r.date) <= 7
+    );
+
+    // Burnout signals summary for AI context
+    const burnoutIndicators = detectBurnoutSignals();
+    const burnoutSignals = burnoutIndicators.map(b => ({ type: b.type, count: 1 }));
+
     return {
       habits: enhancedHabits,
       completions,
@@ -351,9 +564,14 @@ export function useInsights(
       longestStreak,
       dropOffPatterns: getDropOffPatterns(),
       hasInsufficientData,
-      daysTracked
+      daysTracked,
+      // New context
+      insightAdaptation: getInsightAdaptation(),
+      recentReflections,
+      burnoutSignals,
+      momentumMetrics: getMomentumMetrics()
     };
-  }, [habits, completions, getDailyCompletion, getUserProfile, getDropOffPatterns, calculateStreak]);
+  }, [habits, completions, dailyReflections, getDailyCompletion, getUserProfile, getDropOffPatterns, calculateStreak, getInsightAdaptation, getMomentumMetrics, detectBurnoutSignals]);
 
   /**
    * Generate weekly insight via AI
@@ -580,19 +798,43 @@ export function useInsights(
   }, [habits, completions]);
 
   /**
-   * Create insight history entry
+   * Create insight history entry with lifecycle management
    */
   const createInsightHistoryEntry = useCallback((
     type: 'weekly' | 'monthly',
-    summary: string
+    summary: string,
+    daysTracked: number
   ): InsightHistoryEntry => {
+    const now = new Date();
+    // Weekly insights expire after the next review cycle (7 days)
+    // Monthly summaries never expire but get archived when new month begins
+    const expiresAt = type === 'weekly' 
+      ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      : undefined;
+
     return {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       weekStart: getWeekStart(getEffectiveDate()),
       type,
       summary,
-      createdAt: new Date().toISOString()
+      createdAt: now.toISOString(),
+      expiresAt,
+      isArchived: false,
+      confidenceLevel: getConfidenceLevel(daysTracked)
     };
+  }, [getConfidenceLevel]);
+
+  /**
+   * Archive expired insights
+   */
+  const archiveExpiredInsights = useCallback((insightHistory: InsightHistoryEntry[]): InsightHistoryEntry[] => {
+    const now = new Date().toISOString();
+    return insightHistory.map(entry => {
+      if (entry.expiresAt && entry.expiresAt < now && !entry.isArchived) {
+        return { ...entry, isArchived: true };
+      }
+      return entry;
+    });
   }, []);
 
   return {
@@ -606,5 +848,12 @@ export function useInsights(
     getHabitLoadInfo,
     getDropOffPatterns,
     createInsightHistoryEntry,
+    // New exports
+    getInsightAdaptation,
+    getMomentumMetrics,
+    detectBurnoutSignals,
+    generateMomentumSignals,
+    getConfidenceLevel,
+    archiveExpiredInsights,
   };
 }

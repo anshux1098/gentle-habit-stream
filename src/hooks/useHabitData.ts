@@ -479,6 +479,54 @@ export function useHabitData() {
     return data.dismissedRetirements || [];
   }, [data.dismissedRetirements]);
 
+  // Save daily reflection
+  const saveDailyReflection = useCallback((date: string, mood: string, reasons: string[]) => {
+    setData(prev => ({
+      ...prev,
+      dailyReflections: [
+        ...(prev.dailyReflections || []).filter(r => r.date !== date),
+        { date, mood: mood as any, reasons: reasons as any[], createdAt: new Date().toISOString() }
+      ].slice(-30) // Keep last 30 days
+    }));
+  }, []);
+
+  // Get daily reflections
+  const getDailyReflections = useCallback(() => {
+    return data.dailyReflections || [];
+  }, [data.dailyReflections]);
+
+  // Track insight outcome
+  const trackInsightOutcome = useCallback((insightId: string, recommendation: string, outcome: string) => {
+    setData(prev => ({
+      ...prev,
+      insightOutcomes: [
+        ...(prev.insightOutcomes || []),
+        { insightId, recommendation, outcome: outcome as any, recordedAt: new Date().toISOString() }
+      ].slice(-20) // Keep last 20 outcomes
+    }));
+  }, []);
+
+  // Get insight outcomes
+  const getInsightOutcomes = useCallback(() => {
+    return data.insightOutcomes || [];
+  }, [data.insightOutcomes]);
+
+  // Track habit edit for burnout detection
+  const trackHabitEdit = useCallback((habitId: string) => {
+    setData(prev => ({
+      ...prev,
+      habitEditHistory: [
+        ...(prev.habitEditHistory || []),
+        { habitId, editedAt: new Date().toISOString() }
+      ].slice(-50) // Keep last 50 edits
+    }));
+  }, []);
+
+  // Get habit edit history
+  const getHabitEditHistory = useCallback(() => {
+    return data.habitEditHistory || [];
+  }, [data.habitEditHistory]);
+
   return {
     // Data
     habits: data.habits,
@@ -488,6 +536,11 @@ export function useHabitData() {
     backups: data.backups,
     monthlySummaries: data.monthlySummaries || [],
     weeklyInsights: data.weeklyInsights || [],
+    insightHistory: data.insightHistory || [],
+    insightFeedback: data.insightFeedback || [],
+    insightOutcomes: data.insightOutcomes || [],
+    dailyReflections: data.dailyReflections || [],
+    habitEditHistory: data.habitEditHistory || [],
 
     // Habit management
     addHabit,
@@ -526,6 +579,14 @@ export function useHabitData() {
     getMonthlySummaries,
     dismissRetirement,
     getDismissedRetirements,
+
+    // New: Reflection and outcome tracking
+    saveDailyReflection,
+    getDailyReflections,
+    trackInsightOutcome,
+    getInsightOutcomes,
+    trackHabitEdit,
+    getHabitEditHistory,
 
     // Data management
     exportData,

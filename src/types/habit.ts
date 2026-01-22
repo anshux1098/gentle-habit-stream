@@ -99,13 +99,59 @@ export interface RetirementSuggestion {
 // Insight feedback for history
 export type InsightFeedback = 'helpful' | 'neutral' | 'not_useful';
 
-// Historical insight entry
+// Insight outcome tracking - what users did after receiving recommendations
+export type InsightOutcome = 'habit_paused' | 'frequency_reduced' | 'no_change';
+
+// Track insight recommendation outcomes
+export interface InsightOutcomeEntry {
+  insightId: string;
+  recommendation: string;
+  outcome: InsightOutcome;
+  recordedAt: string;
+}
+
+// Insight adaptation level based on user behavior
+export type InsightAdaptation = 'simplified' | 'standard' | 'advanced';
+
+// Historical insight entry with lifecycle status
 export interface InsightHistoryEntry {
   id: string;
   weekStart: string;
   type: 'weekly' | 'monthly';
   summary: string;
   feedback?: InsightFeedback;
+  createdAt: string;
+  expiresAt?: string; // For lifecycle management
+  isArchived?: boolean; // Whether it's been superseded
+  confidenceLevel?: 'low' | 'medium' | 'high'; // Based on data volume
+}
+
+// Momentum signal for recovery and consistency tracking
+export interface MomentumSignal {
+  type: 'recovery' | 'consistency' | 'identity_shift';
+  message: string;
+  metric?: number;
+  habitName?: string;
+  generatedAt: string;
+}
+
+// Burnout indicator with energy-focused framing
+export interface BurnoutIndicator {
+  type: 'same_day_failures' | 'declining_completion' | 'excessive_edits';
+  severity: 'mild' | 'moderate' | 'concerning';
+  message: string;
+  suggestion: string;
+  detectedAt: string;
+}
+
+// Low-friction reflection input
+export type ReflectionMood = '😊' | '😐' | '😔' | '😤' | '😴';
+export type ReflectionReason = 'time' | 'energy' | 'motivation' | 'environment' | 'other';
+
+export interface DailyReflection {
+  date: string;
+  mood?: ReflectionMood;
+  reasons?: ReflectionReason[];
   createdAt: string;
 }
 
@@ -122,6 +168,9 @@ export interface HabitFlowData {
   dismissedRetirements: string[]; // Habit IDs the user dismissed
   insightHistory: InsightHistoryEntry[]; // Last 4 weeks of insights
   insightFeedback: { insightId: string; feedback: InsightFeedback }[]; // User feedback on insights
+  insightOutcomes: InsightOutcomeEntry[]; // Track recommendation outcomes
+  dailyReflections: DailyReflection[]; // Low-friction reflection inputs
+  habitEditHistory: { habitId: string; editedAt: string }[]; // Track habit edits for burnout detection
 }
 
 // Default settings
@@ -171,4 +220,7 @@ export const INITIAL_DATA: HabitFlowData = {
   dismissedRetirements: [],
   insightHistory: [],
   insightFeedback: [],
+  insightOutcomes: [],
+  dailyReflections: [],
+  habitEditHistory: [],
 };
