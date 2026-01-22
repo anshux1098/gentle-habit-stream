@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { History, ChevronDown, ThumbsUp, Minus, ThumbsDown } from 'lucide-react';
+import { History, ChevronDown, ThumbsUp, Minus, ThumbsDown, Archive } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { InsightConfidenceBadge } from '@/components/InsightConfidenceBadge';
 import type { InsightHistoryEntry, InsightFeedback } from '@/types/habit';
-import { getMonthName, getDayName } from '@/lib/dateUtils';
+import { getMonthName } from '@/lib/dateUtils';
 
 interface InsightHistoryCardProps {
   history: InsightHistoryEntry[];
@@ -29,11 +30,14 @@ export function InsightHistoryCard({
   getFeedback 
 }: InsightHistoryCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   if (history.length === 0) return null;
 
-  // Show last 4 weeks
-  const recentHistory = history.slice(0, 4);
+  // Separate active and archived insights
+  const activeHistory = history.filter(h => !h.isArchived).slice(0, 4);
+  const archivedHistory = history.filter(h => h.isArchived).slice(0, 4);
+  const displayHistory = showArchived ? archivedHistory : activeHistory;
 
   return (
     <motion.div
@@ -49,7 +53,7 @@ export function InsightHistoryCard({
           <History className="w-4 h-4 text-muted-foreground" />
           <span className="text-sm font-medium text-foreground">Insight History</span>
           <span className="text-xs text-muted-foreground">
-            Last {recentHistory.length} week{recentHistory.length !== 1 ? 's' : ''}
+            {activeHistory.length} active
           </span>
         </div>
         <motion.div
@@ -70,52 +74,82 @@ export function InsightHistoryCard({
             className="overflow-hidden"
           >
             <div className="p-3 space-y-3">
-              {recentHistory.map((entry) => {
-                const currentFeedback = getFeedback(entry.id);
-                
-                return (
-                  <div 
-                    key={entry.id}
-                    className="p-3 rounded-lg bg-background/50 space-y-2"
+              {/* Toggle between active and archived */}
+              {archivedHistory.length > 0 && (
+                <div className="flex gap-2 pb-2 border-b border-border">
+                  <button
+                    onClick={() => setShowArchived(false)}
+                    className={`text-xs px-2 py-1 rounded-full transition-colors ${!showArchived ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-muted-foreground">
-                        {formatWeekDate(entry.weekStart)}
-                      </span>
-                      <span className="text-xs text-muted-foreground capitalize">
-                        {entry.type}
-                      </span>
-                    </div>
-                    
-                    <p className="text-sm text-foreground/90 line-clamp-2">
-                      {entry.summary}
-                    </p>
+                    Active
+                  </button>
+                  <button
+                    onClick={() => setShowArchived(true)}
+                    className={`text-xs px-2 py-1 rounded-full flex items-center gap-1 transition-colors ${showArchived ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted'}`}
+                  >
+                    <Archive className="w-3 h-3" />
+                    Archived
+                  </button>
+                </div>
+              )}
 
-                    {/* Feedback buttons */}
-                    <div className="flex items-center gap-2 pt-1">
-                      <span className="text-xs text-muted-foreground mr-1">Was this helpful?</span>
-                      {(['helpful', 'neutral', 'not_useful'] as InsightFeedback[]).map((fb) => {
-                        const config = feedbackConfig[fb];
-                        const Icon = config.icon;
-                        const isSelected = currentFeedback === fb;
-                        
-                        return (
-                          <Button
-                            key={fb}
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onFeedback(entry.id, fb)}
-                            className={`h-7 px-2 ${isSelected ? config.color : 'text-muted-foreground/50'}`}
-                            title={config.label}
-                          >
-                            <Icon className="w-3.5 h-3.5" />
-                          </Button>
-                        );
-                      })}
+              {displayHistory.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  {showArchived ? 'No archived insights yet' : 'No active insights yet'}
+                </p>
+              ) : (
+                displayHistory.map((entry) => {
+                  const currentFeedback = getFeedback(entry.id);
+                  
+                  return (
+                    <div 
+                      key={entry.id}
+                      className={`p-3 rounded-lg space-y-2 ${entry.isArchived ? 'bg-muted/20 opacity-70' : 'bg-background/50'}`}
+                    >
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {formatWeekDate(entry.weekStart)}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {entry.confidenceLevel && (
+                            <InsightConfidenceBadge level={entry.confidenceLevel} />
+                          )}
+                          <span className="text-xs text-muted-foreground capitalize">
+                            {entry.type}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <p className="text-sm text-foreground/90 line-clamp-2">
+                        {entry.summary}
+                      </p>
+
+                      {/* Feedback buttons */}
+                      <div className="flex items-center gap-2 pt-1">
+                        <span className="text-xs text-muted-foreground mr-1">Was this helpful?</span>
+                        {(['helpful', 'neutral', 'not_useful'] as InsightFeedback[]).map((fb) => {
+                          const config = feedbackConfig[fb];
+                          const Icon = config.icon;
+                          const isSelected = currentFeedback === fb;
+                          
+                          return (
+                            <Button
+                              key={fb}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => onFeedback(entry.id, fb)}
+                              className={`h-7 px-2 ${isSelected ? config.color : 'text-muted-foreground/50'}`}
+                              title={config.label}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                            </Button>
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
 
               <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border">
                 Your feedback helps improve future insights
