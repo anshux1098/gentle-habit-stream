@@ -20,10 +20,23 @@ export default function ReviewPage() {
     getHabitsForDate,
     saveWeeklyInsight,
     getCurrentWeeklyInsight,
-    calculateStreak
+    calculateStreak,
+    // Full context for AI insights
+    getInsightOutcomes,
+    getDailyReflections,
+    getHabitEditHistory
   } = useHabits();
   
-  const { isLoadingWeekly, generateWeeklyInsight } = useInsights(habits, completions, getHabitsForDate, calculateStreak);
+  // Pass complete context to useInsights for full AI visibility
+  const { isLoadingWeekly, generateWeeklyInsight } = useInsights(
+    habits, 
+    completions, 
+    getHabitsForDate, 
+    calculateStreak,
+    getInsightOutcomes(),
+    getDailyReflections(),
+    getHabitEditHistory()
+  );
   
   const today = getEffectiveDate();
   const isSundayDay = isSunday(today);
