@@ -15,6 +15,17 @@ interface HabitInfo {
   completionRate: number;
 }
 
+// Reflection mood types
+type ReflectionMood = '😊' | '😐' | '😔' | '😤' | '😴';
+type ReflectionReason = 'time' | 'energy' | 'motivation' | 'environment' | 'other';
+
+interface DailyReflection {
+  date: string;
+  mood?: ReflectionMood;
+  reasons?: ReflectionReason[];
+  createdAt: string;
+}
+
 interface HabitData {
   habits: HabitInfo[];
   completions: Array<{ habitId: string; date: string; completed: boolean }>;
@@ -35,6 +46,11 @@ interface HabitData {
   dropOffPatterns: Array<{ habitName: string; dropOffDay: number }>;
   hasInsufficientData: boolean;
   daysTracked: number;
+  // Advanced context for adaptive insights
+  insightAdaptation: 'simplified' | 'standard' | 'advanced';
+  recentReflections: DailyReflection[];
+  burnoutSignals: { type: string; count: number }[];
+  momentumMetrics: { recoverySpeed: number; consistencyScore: number };
 }
 
 interface RequestBody {
@@ -145,6 +161,35 @@ FORMAT: Return valid JSON with this exact structure:
         ? `\nDrop-off patterns detected:\n${data.dropOffPatterns.map(d => `- ${d.habitName}: tends to drop after day ${d.dropOffDay}`).join('\n')}`
         : '';
 
+      // Build reflection context if available
+      const reflections = data.recentReflections || [];
+      const reflectionContext = reflections.length > 0
+        ? `\nRECENT REFLECTIONS (user-reported):\n${reflections.map(r => {
+            const moodText = r.mood || 'not specified';
+            const reasonsText = r.reasons?.length ? r.reasons.join(', ') : 'none specified';
+            return `- ${r.date}: mood ${moodText}, challenges: ${reasonsText}`;
+          }).join('\n')}`
+        : '';
+
+      // Build burnout signal context
+      const burnoutSignals = data.burnoutSignals || [];
+      const burnoutContext = burnoutSignals.length > 0
+        ? `\nENERGY SIGNALS:\n${burnoutSignals.map(s => `- ${s.type}: detected ${s.count} time(s)`).join('\n')}`
+        : '';
+
+      // Build momentum context
+      const momentum = data.momentumMetrics || { recoverySpeed: 0, consistencyScore: 0 };
+      const momentumContext = `\nMOMENTUM METRICS:
+- Recovery speed (after missed days): ${momentum.recoverySpeed.toFixed(1)}%
+- Consistency score: ${momentum.consistencyScore.toFixed(1)}%`;
+
+      // Insight adaptation level affects recommendation complexity
+      const adaptationNote = data.insightAdaptation === 'simplified' 
+        ? '\nNote: Keep recommendations VERY simple - user tends to skip complex suggestions.'
+        : data.insightAdaptation === 'advanced'
+        ? '\nNote: User follows recommendations well - can suggest slightly more nuanced improvements.'
+        : '';
+
       userPrompt = `Analyze this week's habit data:
 
 COMPLETION RATES:
@@ -161,7 +206,12 @@ USER CONTEXT:
 - Profile: ${data.userProfile}
 - Total habits: ${data.totalHabitCount}
 - Longest streak: ${data.longestStreak}
+- Insight adaptation: ${data.insightAdaptation || 'standard'}
 ${data.hasInsufficientData ? '- Note: Limited data available (early stage)' : ''}
+${momentumContext}
+${reflectionContext}
+${burnoutContext}
+${adaptationNote}
 
 Provide weekly insights based on this data.`;
 
@@ -206,6 +256,35 @@ FORMAT: Return valid JSON with this exact structure:
         ? `\nPotential over-ambition: ${data.habitsAddedThisMonth} habits added this month.` 
         : '';
 
+      // Build reflection context for monthly view
+      const reflections = data.recentReflections || [];
+      const monthlyReflectionContext = reflections.length > 0
+        ? `\nUSER REFLECTIONS THIS MONTH:\n${reflections.slice(0, 10).map(r => {
+            const moodText = r.mood || 'not specified';
+            const reasonsText = r.reasons?.length ? r.reasons.join(', ') : 'none specified';
+            return `- ${r.date}: mood ${moodText}, challenges: ${reasonsText}`;
+          }).join('\n')}`
+        : '';
+
+      // Build burnout signal context
+      const burnoutSignals = data.burnoutSignals || [];
+      const monthlyBurnoutContext = burnoutSignals.length > 0
+        ? `\nENERGY SIGNALS DETECTED:\n${burnoutSignals.map(s => `- ${s.type}: occurred ${s.count} time(s)`).join('\n')}`
+        : '';
+
+      // Build momentum context
+      const momentum = data.momentumMetrics || { recoverySpeed: 0, consistencyScore: 0 };
+      const monthlyMomentumContext = `\nMOMENTUM ANALYSIS:
+- Recovery speed (how quickly user bounces back): ${momentum.recoverySpeed.toFixed(1)}%
+- Consistency score (sustained completions): ${momentum.consistencyScore.toFixed(1)}%`;
+
+      // Insight adaptation level
+      const adaptationNote = data.insightAdaptation === 'simplified' 
+        ? '\nNote: Keep recommendations VERY simple - user tends to skip complex suggestions.'
+        : data.insightAdaptation === 'advanced'
+        ? '\nNote: User follows recommendations well - can suggest slightly more nuanced improvements.'
+        : '';
+
       userPrompt = `Analyze this month's habit data:
 
 MONTHLY OVERVIEW:
@@ -225,8 +304,13 @@ CONTEXT:
 - Average habit age: ${data.averageHabitAge.toFixed(0)} days
 - Habits with no activity (30+ days): ${data.inactiveHabits.join(', ') || 'None'}
 - User profile: ${data.userProfile}
+- Insight adaptation: ${data.insightAdaptation || 'standard'}
 ${fatigueWarning}
 ${data.hasInsufficientData ? '- Limited data: Only ' + data.daysTracked + ' days tracked' : ''}
+${monthlyMomentumContext}
+${monthlyReflectionContext}
+${monthlyBurnoutContext}
+${adaptationNote}
 
 Provide monthly insights focusing on patterns, not judgment.`;
     }
