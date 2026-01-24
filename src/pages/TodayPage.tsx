@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, TrendingUp, Sparkles } from 'lucide-react';
 import { Layout } from '@/components/Layout';
@@ -5,17 +6,50 @@ import { HabitList } from '@/components/HabitList';
 import { AddHabitForm } from '@/components/AddHabitForm';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatCard } from '@/components/StatCard';
+import { MomentumSignalCard } from '@/components/MomentumSignalCard';
 import { useHabits } from '@/contexts/HabitContext';
+import { useInsights } from '@/hooks/useInsights';
 import { getEffectiveDate, getDayName, getMonthName, isWeekend, isAfter8PM, getTomorrow } from '@/lib/dateUtils';
 
 export default function TodayPage() {
   const { 
+    habits,
+    completions,
     getHabitsForDate, 
     getDailyCompletionPercentage,
     getWeeklyAverage,
     getHighestStreak,
+    calculateStreak,
+    getInsightOutcomes,
+    getDailyReflections,
+    getHabitEditHistory,
     settings
   } = useHabits();
+
+  // Get momentum signals from insights hook
+  const { generateMomentumSignals } = useInsights(
+    habits,
+    completions,
+    getHabitsForDate,
+    calculateStreak,
+    getInsightOutcomes(),
+    getDailyReflections(),
+    getHabitEditHistory()
+  );
+
+  // Get momentum signals and pick ONE to display (prioritized: identity_shift > consistency > recovery)
+  const todaysMomentumSignal = useMemo(() => {
+    const signals = generateMomentumSignals();
+    if (signals.length === 0) return null;
+    
+    // Priority order: identity_shift (strongest) > consistency > recovery
+    const priorityOrder = ['identity_shift', 'consistency', 'recovery'] as const;
+    for (const type of priorityOrder) {
+      const signal = signals.find(s => s.type === type);
+      if (signal) return signal;
+    }
+    return signals[0];
+  }, [generateMomentumSignals]);
 
   const today = getEffectiveDate();
   const isWeekendDay = isWeekend(today);
@@ -112,6 +146,17 @@ export default function TodayPage() {
           
           <AddHabitForm />
         </motion.section>
+
+        {/* Momentum Signal - show only when meaningful signal exists */}
+        {todaysMomentumSignal && (
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+          >
+            <MomentumSignalCard signal={todaysMomentumSignal} />
+          </motion.section>
+        )}
 
         {/* Tomorrow Preview (after 8 PM) */}
         {showTomorrowPreview && (
