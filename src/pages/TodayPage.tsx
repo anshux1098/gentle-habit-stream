@@ -7,9 +7,11 @@ import { AddHabitForm } from '@/components/AddHabitForm';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatCard } from '@/components/StatCard';
 import { MomentumSignalCard } from '@/components/MomentumSignalCard';
+import { ReflectionInput, type ReflectionContext } from '@/components/ReflectionInput';
 import { useHabits } from '@/contexts/HabitContext';
 import { useInsights } from '@/hooks/useInsights';
 import { getEffectiveDate, getDayName, getMonthName, isWeekend, isAfter8PM, getTomorrow } from '@/lib/dateUtils';
+import type { ReflectionMood, ReflectionReason } from '@/types/habit';
 
 export default function TodayPage() {
   const { 
@@ -23,17 +25,35 @@ export default function TodayPage() {
     getInsightOutcomes,
     getDailyReflections,
     getHabitEditHistory,
+    saveDailyReflection,
     settings
   } = useHabits();
 
-  // Get momentum signals from insights hook
-  const { generateMomentumSignals } = useInsights(
+  const today = getEffectiveDate();
+  const todayHabits = getHabitsForDate(today);
+  const dailyReflections = getDailyReflections();
+  
+  // Check if user has completed at least one habit today
+  const completedHabitsToday = useMemo(() => {
+    return todayHabits.filter(h => {
+      const completion = completions.find(c => c.habitId === h.id && c.date === today);
+      return completion?.completed === true;
+    });
+  }, [todayHabits, completions, today]);
+
+  // Get today's reflection if it exists
+  const todaysReflection = useMemo(() => {
+    return dailyReflections.find(r => r.date === today);
+  }, [dailyReflections, today]);
+
+  // Get momentum and burnout signals from insights hook
+  const { generateMomentumSignals, detectBurnoutSignals } = useInsights(
     habits,
     completions,
     getHabitsForDate,
     calculateStreak,
     getInsightOutcomes(),
-    getDailyReflections(),
+    dailyReflections,
     getHabitEditHistory()
   );
 
@@ -51,9 +71,23 @@ export default function TodayPage() {
     return signals[0];
   }, [generateMomentumSignals]);
 
-  const today = getEffectiveDate();
+  // Detect burnout signals
+  const burnoutSignals = useMemo(() => detectBurnoutSignals(), [detectBurnoutSignals]);
+  const hasBurnoutSignal = burnoutSignals.length > 0;
+
+  // Determine reflection context based on active signals
+  const reflectionContext: ReflectionContext = useMemo(() => {
+    if (hasBurnoutSignal) return 'burnout';
+    if (todaysMomentumSignal) return 'momentum';
+    return 'neutral';
+  }, [hasBurnoutSignal, todaysMomentumSignal]);
+
+  // Handle reflection submission
+  const handleReflectionSubmit = (mood: ReflectionMood, reasons: ReflectionReason[]) => {
+    saveDailyReflection(today, mood, reasons);
+  };
+
   const isWeekendDay = isWeekend(today);
-  const todayHabits = getHabitsForDate(today);
   const completionPercentage = getDailyCompletionPercentage(today);
   const weeklyAverage = getWeeklyAverage();
   const highestStreak = getHighestStreak();
@@ -155,6 +189,22 @@ export default function TodayPage() {
             transition={{ delay: 0.35 }}
           >
             <MomentumSignalCard signal={todaysMomentumSignal} />
+          </motion.section>
+        )}
+
+        {/* Daily Reflection - show only after completing at least one habit */}
+        {completedHabitsToday.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <ReflectionInput
+              onSubmit={handleReflectionSubmit}
+              currentMood={todaysReflection?.mood}
+              currentReasons={todaysReflection?.reasons}
+              context={reflectionContext}
+            />
           </motion.section>
         )}
 
