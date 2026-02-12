@@ -7,11 +7,38 @@ import { AddHabitForm } from '@/components/AddHabitForm';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatCard } from '@/components/StatCard';
 import { MomentumSignalCard } from '@/components/MomentumSignalCard';
+import { BurnoutIndicatorCard } from '@/components/BurnoutIndicatorCard';
 import { ReflectionInput, type ReflectionContext } from '@/components/ReflectionInput';
 import { useHabits } from '@/contexts/HabitContext';
 import { useInsights } from '@/hooks/useInsights';
 import { getEffectiveDate, getDayName, getMonthName, isWeekend, isAfter8PM, getTomorrow } from '@/lib/dateUtils';
 import type { ReflectionMood, ReflectionReason } from '@/types/habit';
+
+const LAST_SIGNAL_KEY = 'habit-flow-last-signal';
+
+/**
+ * Prevents showing the exact same intelligence message on consecutive days.
+ * Returns null if the message was already shown yesterday (or today earlier).
+ * Stores the current message for future dedup.
+ */
+function deduplicateSignalMessage(message: string, today: string): boolean {
+  try {
+    const stored = localStorage.getItem(LAST_SIGNAL_KEY);
+    if (stored) {
+      const { message: lastMsg, date: lastDate } = JSON.parse(stored);
+      // If same message was shown yesterday or today, suppress it
+      if (lastMsg === message && lastDate !== today) {
+        // Same message on a different (recent) day — vary or suppress
+        // We suppress: the caller should try alternate signals
+        return false;
+      }
+    }
+    localStorage.setItem(LAST_SIGNAL_KEY, JSON.stringify({ message, date: today }));
+    return true;
+  } catch {
+    return true;
+  }
+}
 
 export default function TodayPage() {
   const { 
@@ -57,30 +84,49 @@ export default function TodayPage() {
     getHabitEditHistory()
   );
 
-  // Get momentum signals and pick ONE to display (prioritized: identity_shift > consistency > recovery)
+  // Detect burnout signals — pick the highest severity one
+  const topBurnoutSignal = useMemo(() => {
+    const signals = detectBurnoutSignals();
+    if (signals.length === 0) return null;
+    const severityOrder = { concerning: 3, moderate: 2, mild: 1 };
+    const sorted = [...signals].sort((a, b) => severityOrder[b.severity] - severityOrder[a.severity]);
+    const top = sorted[0];
+    // Deduplicate: don't show same message on consecutive days
+    if (!deduplicateSignalMessage(top.message, today)) {
+      // Try next signal
+      for (const s of sorted.slice(1)) {
+        if (deduplicateSignalMessage(s.message, today)) return s;
+      }
+      return null;
+    }
+    return top;
+  }, [detectBurnoutSignals, today]);
+
+  // Get momentum signal — only if NO burnout signal is active (mutual exclusion)
   const todaysMomentumSignal = useMemo(() => {
+    if (topBurnoutSignal) return null; // Burnout takes priority — never show both
+    
     const signals = generateMomentumSignals();
     if (signals.length === 0) return null;
     
-    // Priority order: identity_shift (strongest) > consistency > recovery
+    // Priority: identity_shift > consistency > recovery
     const priorityOrder = ['identity_shift', 'consistency', 'recovery'] as const;
     for (const type of priorityOrder) {
       const signal = signals.find(s => s.type === type);
-      if (signal) return signal;
+      if (signal && deduplicateSignalMessage(signal.message, today)) {
+        return signal;
+      }
     }
-    return signals[0];
-  }, [generateMomentumSignals]);
+    // All were deduplicated — show nothing rather than repeat
+    return null;
+  }, [generateMomentumSignals, topBurnoutSignal, today]);
 
-  // Detect burnout signals
-  const burnoutSignals = useMemo(() => detectBurnoutSignals(), [detectBurnoutSignals]);
-  const hasBurnoutSignal = burnoutSignals.length > 0;
-
-  // Determine reflection context based on active signals
+  // Determine reflection context based on active signal
   const reflectionContext: ReflectionContext = useMemo(() => {
-    if (hasBurnoutSignal) return 'burnout';
+    if (topBurnoutSignal) return 'burnout';
     if (todaysMomentumSignal) return 'momentum';
     return 'neutral';
-  }, [hasBurnoutSignal, todaysMomentumSignal]);
+  }, [topBurnoutSignal, todaysMomentumSignal]);
 
   // Handle reflection submission
   const handleReflectionSubmit = (mood: ReflectionMood, reasons: ReflectionReason[]) => {
@@ -162,10 +208,7 @@ export default function TodayPage() {
               {isWeekendDay ? 'Weekend Habits' : 'Habits'}
             </h2>
             <span className="text-sm text-muted-foreground">
-              {todayHabits.filter(h => {
-                // Check completion inline
-                return true; // Will be filtered in HabitList
-              }).length} habits
+              {todayHabits.length} habits
             </span>
           </div>
           
@@ -181,7 +224,17 @@ export default function TodayPage() {
           <AddHabitForm />
         </motion.section>
 
-        {/* Momentum Signal - show only when meaningful signal exists */}
+        {/* Intelligence Card — at most ONE: Burnout OR Momentum, never both */}
+        {topBurnoutSignal && (
+          <motion.section
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+          >
+            <BurnoutIndicatorCard indicator={topBurnoutSignal} />
+          </motion.section>
+        )}
+
         {todaysMomentumSignal && (
           <motion.section
             initial={{ opacity: 0, y: 10 }}
@@ -192,7 +245,7 @@ export default function TodayPage() {
           </motion.section>
         )}
 
-        {/* Daily Reflection - show only after completing at least one habit */}
+        {/* Daily Reflection — optional, only after completing at least one habit */}
         {completedHabitsToday.length > 0 && (
           <motion.section
             initial={{ opacity: 0, y: 10 }}
@@ -213,7 +266,7 @@ export default function TodayPage() {
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.45 }}
             className="p-4 rounded-xl bg-muted/50 border border-border"
           >
             <div className="flex items-center gap-2 mb-3">
@@ -224,7 +277,7 @@ export default function TodayPage() {
           </motion.section>
         )}
 
-        {/* Sunday message */}
+        {/* Weekend encouragement */}
         {isWeekend(today) && (
           <motion.div
             initial={{ opacity: 0 }}
