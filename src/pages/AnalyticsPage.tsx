@@ -1,15 +1,20 @@
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, Flame, Target, Calendar, Trophy } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { StatCard } from '@/components/StatCard';
 import { ProgressRing } from '@/components/ProgressRing';
 import { WeeklyHeatmap } from '@/components/WeeklyHeatmap';
+import { MonthlySummaryCard } from '@/components/MonthlySummaryCard';
 import { useHabits } from '@/contexts/HabitContext';
+import { useInsights } from '@/hooks/useInsights';
 import { ACHIEVEMENTS } from '@/types/habit';
+import { getCurrentMonth, getPreviousMonth } from '@/lib/dateUtils';
 
 export default function AnalyticsPage() {
   const {
     habits,
+    completions,
     settings,
     getDailyCompletionPercentage,
     getWeeklyAverage,
@@ -18,8 +23,54 @@ export default function AnalyticsPage() {
     getCompletionTrend,
     getBestPerformanceDays,
     calculateStreak,
+    getHabitsForDate,
     unlockedAchievements,
+    saveMonthlySummary,
+    getMonthlySummaries,
+    getInsightOutcomes,
+    getDailyReflections,
+    getHabitEditHistory,
   } = useHabits();
+
+  const {
+    generateMonthlySummary,
+    generateMonthlyInsight,
+    isLoadingMonthly,
+  } = useInsights(
+    habits,
+    completions,
+    getHabitsForDate,
+    calculateStreak,
+    getInsightOutcomes(),
+    getDailyReflections(),
+    getHabitEditHistory()
+  );
+
+  // Generate current month summary from existing data, show only with 7+ days of data
+  const currentMonthlySummary = useMemo(() => {
+    const currentMonth = getCurrentMonth();
+    const savedSummaries = getMonthlySummaries();
+    const existing = savedSummaries.find(s => s.month === currentMonth);
+    if (existing) return existing;
+    
+    const generated = generateMonthlySummary(currentMonth);
+    // Only show if we have meaningful data (7+ days tracked)
+    if (!generated || generated.habitConsistency.length === 0) return null;
+    const totalScheduledDays = generated.perfectDays + Math.round(
+      (generated.averageCompletion > 0 ? 1 : 0) * 30
+    );
+    // Simple check: need at least some data points
+    if (generated.averageCompletion === 0 && generated.perfectDays === 0) return null;
+    return generated;
+  }, [getMonthlySummaries, generateMonthlySummary]);
+
+  const handleGenerateMonthlyInsight = async () => {
+    if (!currentMonthlySummary) return;
+    const insights = await generateMonthlyInsight();
+    if (insights && currentMonthlySummary) {
+      saveMonthlySummary({ ...currentMonthlySummary, aiInsights: insights });
+    }
+  };
 
   const todayCompletion = getDailyCompletionPercentage();
   const weeklyAverage = getWeeklyAverage();
@@ -42,6 +93,15 @@ export default function AnalyticsPage() {
           <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
           <p className="text-muted-foreground">Track your progress over time</p>
         </motion.header>
+
+        {/* Monthly Summary */}
+        {currentMonthlySummary && (
+          <MonthlySummaryCard
+            summary={currentMonthlySummary}
+            isGeneratingInsight={isLoadingMonthly}
+            onGenerateInsight={handleGenerateMonthlyInsight}
+          />
+        )}
 
         {/* Main Stats Grid */}
         <motion.div
