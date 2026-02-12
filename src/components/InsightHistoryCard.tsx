@@ -93,11 +93,7 @@ export function InsightHistoryCard({
                 </div>
               )}
 
-              {displayHistory.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  {showArchived ? 'No archived insights yet' : 'No active insights yet'}
-                </p>
-              ) : (
+              {displayHistory.length === 0 ? null : (
                 displayHistory.map((entry) => {
                   const currentFeedback = getFeedback(entry.id);
                   
@@ -151,9 +147,11 @@ export function InsightHistoryCard({
                 })
               )}
 
-              <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border">
-                Your feedback helps improve future insights
-              </p>
+              {displayHistory.length > 0 && (
+                <p className="text-xs text-muted-foreground text-center pt-2 border-t border-border">
+                  Your feedback helps shape future insights
+                </p>
+              )}
             </div>
           </motion.div>
         )}
