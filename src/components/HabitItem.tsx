@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Check, Star } from 'lucide-react';
+import { Check, Star, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Habit } from '@/types/habit';
 import { useHabits } from '@/contexts/HabitContext';
 import { getEffectiveDate } from '@/lib/dateUtils';
+import { EditHabitModal } from './EditHabitModal';
 
 interface HabitItemProps {
   habit: Habit;
@@ -23,8 +25,12 @@ export function HabitItem({
     toggleCompletion, 
     getFocusHabit, 
     setFocusHabit,
-    calculateStreak 
+    calculateStreak,
+    updateHabit,
+    trackHabitEdit
   } = useHabits();
+
+  const [editOpen, setEditOpen] = useState(false);
 
   const isCompleted = getCompletion(habit.id, date);
   const isFocused = getFocusHabit(date) === habit.id;
@@ -39,6 +45,16 @@ export function HabitItem({
     e.stopPropagation();
     if (readOnly) return;
     setFocusHabit(isFocused ? null : habit.id, date);
+  };
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditOpen(true);
+  };
+
+  const handleEditSave = (updates: Partial<Habit>, scheduleChanged: boolean) => {
+    updateHabit(habit.id, updates);
+    trackHabitEdit(habit.id);
   };
 
   return (
@@ -99,6 +115,20 @@ export function HabitItem({
         )}
       </div>
 
+      {/* Edit button */}
+      {!readOnly && (
+        <button
+          onClick={handleEditClick}
+          className={cn(
+            "flex-shrink-0 p-1.5 rounded-lg transition-all duration-200",
+            "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"
+          )}
+          aria-label="Edit habit"
+        >
+          <Pencil className="w-4 h-4" />
+        </button>
+      )}
+
       {/* Focus star button */}
       {showFocusButton && !readOnly && (
         <button
@@ -120,6 +150,14 @@ export function HabitItem({
           />
         </button>
       )}
+
+      {/* Edit Modal */}
+      <EditHabitModal
+        habit={habit}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSave={handleEditSave}
+      />
     </motion.div>
   );
 }
