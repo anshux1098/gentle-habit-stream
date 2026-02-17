@@ -8,6 +8,7 @@ export interface Habit {
   type: HabitType;
   createdAt: string; // ISO timestamp
   active: boolean;
+  pausedAt?: string; // ISO timestamp — when habit was paused
   reminderTime?: string; // HH:MM format
 }
 
@@ -171,6 +172,7 @@ export interface HabitFlowData {
   insightOutcomes: InsightOutcomeEntry[]; // Track recommendation outcomes
   dailyReflections: DailyReflection[]; // Low-friction reflection inputs
   habitEditHistory: { habitId: string; editedAt: string }[]; // Track habit edits for burnout detection
+  habitPauseHistory: { habitId: string; action: 'pause' | 'unpause'; at: string }[]; // Track pause/unpause events
 }
 
 // Default settings
@@ -223,4 +225,5 @@ export const INITIAL_DATA: HabitFlowData = {
   insightOutcomes: [],
   dailyReflections: [],
   habitEditHistory: [],
+  habitPauseHistory: [],
 };
