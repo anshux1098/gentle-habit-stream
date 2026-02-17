@@ -1,14 +1,16 @@
 import { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Calendar, TrendingUp, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Calendar, TrendingUp, Sparkles, ChevronDown } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { HabitList } from '@/components/HabitList';
+import { HabitItem } from '@/components/HabitItem';
 import { AddHabitForm } from '@/components/AddHabitForm';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatCard } from '@/components/StatCard';
 import { MomentumSignalCard } from '@/components/MomentumSignalCard';
 import { BurnoutIndicatorCard } from '@/components/BurnoutIndicatorCard';
 import { ReflectionInput, type ReflectionContext } from '@/components/ReflectionInput';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useHabits } from '@/contexts/HabitContext';
 import { useInsights } from '@/hooks/useInsights';
 import { getEffectiveDate, getDayName, getMonthName, isWeekend, isAfter8PM, getTomorrow } from '@/lib/dateUtils';
@@ -58,6 +60,11 @@ export default function TodayPage() {
 
   const today = getEffectiveDate();
   const todayHabits = getHabitsForDate(today);
+  
+  // Paused habits (active but paused)
+  const pausedHabits = useMemo(() => {
+    return habits.filter(h => h.active && h.pausedAt);
+  }, [habits]);
   const dailyReflections = getDailyReflections();
   
   // Check if user has completed at least one habit today
@@ -223,6 +230,37 @@ export default function TodayPage() {
           
           <AddHabitForm />
         </motion.section>
+
+        {/* Paused Habits — collapsed by default */}
+        {pausedHabits.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.35 }}
+          >
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2">
+                <ChevronDown className="w-4 h-4 transition-transform [[data-state=open]>&]:rotate-180" />
+                <span>{pausedHabits.length} paused habit{pausedHabits.length !== 1 ? 's' : ''}</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="space-y-3 pt-2">
+                  <AnimatePresence mode="popLayout">
+                    {pausedHabits.map(habit => (
+                      <HabitItem
+                        key={habit.id}
+                        habit={habit}
+                        date={today}
+                        showFocusButton={false}
+                        isPaused
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </motion.section>
+        )}
 
         {/* Intelligence Card — at most ONE: Burnout OR Momentum, never both */}
         {topBurnoutSignal && (

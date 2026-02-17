@@ -126,6 +126,30 @@ export function useHabitData() {
     }));
   }, []);
 
+  // Pause habit
+  const pauseHabit = useCallback((id: string) => {
+    setData(prev => ({
+      ...prev,
+      habits: prev.habits.map(h => h.id === id ? { ...h, pausedAt: new Date().toISOString() } : h),
+      habitPauseHistory: [
+        ...(prev.habitPauseHistory || []),
+        { habitId: id, action: 'pause' as const, at: new Date().toISOString() }
+      ],
+    }));
+  }, []);
+
+  // Unpause habit
+  const unpauseHabit = useCallback((id: string) => {
+    setData(prev => ({
+      ...prev,
+      habits: prev.habits.map(h => h.id === id ? { ...h, pausedAt: undefined } : h),
+      habitPauseHistory: [
+        ...(prev.habitPauseHistory || []),
+        { habitId: id, action: 'unpause' as const, at: new Date().toISOString() }
+      ],
+    }));
+  }, []);
+
   // Toggle completion
   const toggleCompletion = useCallback((habitId: string, date: string = getEffectiveDate()) => {
     setData(prev => {
@@ -312,9 +336,9 @@ export function useHabitData() {
     return streak;
   }, [data.habits, data.completions, data.unlockedAchievements]);
 
-  // Get habits for a specific date
+  // Get habits for a specific date (excludes paused habits)
   const getHabitsForDate = useCallback((date: string = getEffectiveDate()): Habit[] => {
-    return data.habits.filter(h => h.active && isHabitScheduledForDate(h.type, date));
+    return data.habits.filter(h => h.active && !h.pausedAt && isHabitScheduledForDate(h.type, date));
   }, [data.habits]);
 
   // Calculate daily completion percentage
@@ -369,7 +393,7 @@ export function useHabitData() {
   // Get highest streak
   const getHighestStreak = useCallback((): number => {
     if (data.habits.length === 0) return 0;
-    return Math.max(0, ...data.habits.filter(h => h.active).map(h => calculateStreak(h.id)));
+    return Math.max(0, ...data.habits.filter(h => h.active && !h.pausedAt).map(h => calculateStreak(h.id)));
   }, [data.habits, calculateStreak]);
 
   // Get completion trend (last 30 days)
@@ -541,11 +565,14 @@ export function useHabitData() {
     insightOutcomes: data.insightOutcomes || [],
     dailyReflections: data.dailyReflections || [],
     habitEditHistory: data.habitEditHistory || [],
+    habitPauseHistory: data.habitPauseHistory || [],
 
     // Habit management
     addHabit,
     updateHabit,
     deleteHabit,
+    pauseHabit,
+    unpauseHabit,
 
     // Completion management
     toggleCompletion,
