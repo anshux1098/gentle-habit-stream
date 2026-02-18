@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Settings, 
   Moon, 
   Sun, 
   Monitor, 
@@ -9,10 +8,12 @@ import {
   BellOff, 
   PartyPopper, 
   Download, 
+  Upload,
   Trash2, 
   RotateCcw,
   ChevronRight,
-  Info
+  Info,
+  AlertCircle
 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -33,12 +34,17 @@ export default function SettingsPage() {
     habits, 
     completions,
     exportData, 
+    importData,
     resetAllData,
     backups,
     restoreBackup
   } = useHabits();
   const { theme, setTheme } = useTheme();
   const [showDataInfo, setShowDataInfo] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [pendingImport, setPendingImport] = useState<string | null>(null);
+  const [importStats, setImportStats] = useState<{ habits: number; completions: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const today = getEffectiveDate();
   const totalHabits = habits.length;
@@ -55,6 +61,55 @@ export default function SettingsPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success('Data exported!', { description: 'Your data has been downloaded.' });
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!fileInputRef.current) return;
+    fileInputRef.current.value = '';
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      setImportError('Please select a .json file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const text = ev.target?.result as string;
+      try {
+        const parsed = JSON.parse(text);
+        setImportError(null);
+        setImportStats({
+          habits: Array.isArray(parsed.habits) ? parsed.habits.length : 0,
+          completions: Array.isArray(parsed.completions) ? parsed.completions.length : 0,
+        });
+        setPendingImport(text);
+      } catch {
+        setImportError('File is not valid JSON.');
+        setPendingImport(null);
+        setImportStats(null);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImportConfirm = () => {
+    if (!pendingImport) return;
+    const result = importData(pendingImport);
+    if (result.success) {
+      toast.success('Data imported!', { description: 'Your habits and history have been restored.' });
+    } else {
+      toast.error('Import failed', { description: result.error ?? 'Unknown error. Your data is unchanged.' });
+    }
+    setPendingImport(null);
+    setImportStats(null);
+  };
+
+  const handleImportCancel = () => {
+    setPendingImport(null);
+    setImportStats(null);
+    setImportError(null);
   };
 
   const handleReset = () => {
@@ -225,9 +280,18 @@ export default function SettingsPage() {
           className="p-4 rounded-xl bg-card border border-border space-y-4"
         >
           <h3 className="font-medium text-foreground">Data</h3>
-          
-          <Button 
-            variant="outline" 
+
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+
+          <Button
+            variant="outline"
             onClick={handleExport}
             className="w-full justify-between"
           >
@@ -238,6 +302,58 @@ export default function SettingsPage() {
             <ChevronRight className="w-4 h-4" />
           </Button>
 
+          <Button
+            variant="outline"
+            onClick={() => {
+              setImportError(null);
+              fileInputRef.current?.click();
+            }}
+            className="w-full justify-between"
+          >
+            <div className="flex items-center gap-2">
+              <Upload className="w-4 h-4" />
+              <span>Import from file</span>
+            </div>
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+
+          {/* Inline error */}
+          {importError && (
+            <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+              <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+              <span>{importError}</span>
+            </div>
+          )}
+
+          {/* Import confirmation dialog */}
+          <AlertDialog open={!!pendingImport} onOpenChange={(open) => { if (!open) handleImportCancel(); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Replace your data?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-3">
+                    <p>
+                      This will fully replace your current habits and history with the imported file. Your existing data will be lost.
+                    </p>
+                    {importStats && (
+                      <div className="rounded-lg bg-muted/60 border border-border p-3 text-sm space-y-1">
+                        <p className="font-medium text-foreground">File contains:</p>
+                        <p className="text-muted-foreground">{importStats.habits} habit{importStats.habits !== 1 ? 's' : ''}</p>
+                        <p className="text-muted-foreground">{importStats.completions} completion record{importStats.completions !== 1 ? 's' : ''}</p>
+                      </div>
+                    )}
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={handleImportCancel}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleImportConfirm}>
+                  Import & replace
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
           {/* Backups */}
           {backups.length > 0 && (
             <div className="space-y-2">
@@ -245,8 +361,8 @@ export default function SettingsPage() {
               {backups.slice(0, 3).map((backup, index) => (
                 <AlertDialog key={backup.date}>
                   <AlertDialogTrigger asChild>
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       className="w-full justify-between text-sm"
                     >
                       <div className="flex items-center gap-2">
@@ -277,8 +393,8 @@ export default function SettingsPage() {
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button 
-                variant="destructive" 
+              <Button
+                variant="destructive"
                 className="w-full justify-between"
               >
                 <div className="flex items-center gap-2">
