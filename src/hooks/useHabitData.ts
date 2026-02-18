@@ -432,16 +432,63 @@ export function useHabitData() {
     return JSON.stringify(data, null, 2);
   }, [data]);
 
-  // Import data
-  const importData = useCallback((jsonString: string): boolean => {
+  // Validate import file structure
+  const validateImportData = useCallback((jsonString: string): { valid: boolean; error?: string; data?: HabitFlowData } => {
     try {
       const parsed = JSON.parse(jsonString);
-      setData({ ...INITIAL_DATA, ...parsed });
-      return true;
+
+      if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+        return { valid: false, error: 'File must contain a JSON object.' };
+      }
+
+      // Required top-level keys
+      const required: (keyof HabitFlowData)[] = ['habits', 'completions', 'settings'];
+      for (const key of required) {
+        if (!(key in parsed)) {
+          return { valid: false, error: `Missing required field: "${key}".` };
+        }
+      }
+
+      if (!Array.isArray(parsed.habits)) {
+        return { valid: false, error: '"habits" must be an array.' };
+      }
+      if (!Array.isArray(parsed.completions)) {
+        return { valid: false, error: '"completions" must be an array.' };
+      }
+      if (typeof parsed.settings !== 'object') {
+        return { valid: false, error: '"settings" must be an object.' };
+      }
+
+      // Validate each habit has at minimum id, name, type
+      for (const habit of parsed.habits) {
+        if (!habit.id || !habit.name || !habit.type) {
+          return { valid: false, error: 'One or more habits are missing required fields (id, name, type).' };
+        }
+      }
+
+      // Validate completions have habitId and date
+      for (const comp of parsed.completions) {
+        if (!comp.habitId || !comp.date) {
+          return { valid: false, error: 'One or more completions are missing required fields (habitId, date).' };
+        }
+      }
+
+      const merged: HabitFlowData = { ...INITIAL_DATA, ...parsed };
+      return { valid: true, data: merged };
     } catch {
-      return false;
+      return { valid: false, error: 'File is not valid JSON.' };
     }
   }, []);
+
+  // Import data (full replace)
+  const importData = useCallback((jsonString: string): { success: boolean; error?: string } => {
+    const result = validateImportData(jsonString);
+    if (!result.valid || !result.data) {
+      return { success: false, error: result.error };
+    }
+    setData(result.data);
+    return { success: true };
+  }, [validateImportData]);
 
   // Reset all data
   const resetAllData = useCallback(() => {
