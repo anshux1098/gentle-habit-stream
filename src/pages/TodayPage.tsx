@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, TrendingUp, Sparkles, ChevronDown } from 'lucide-react';
 import { Layout } from '@/components/Layout';
@@ -10,11 +10,13 @@ import { StatCard } from '@/components/StatCard';
 import { MomentumSignalCard } from '@/components/MomentumSignalCard';
 import { BurnoutIndicatorCard } from '@/components/BurnoutIndicatorCard';
 import { ReflectionInput, type ReflectionContext } from '@/components/ReflectionInput';
+import { OnboardingModal, PostOnboardingHint } from '@/components/OnboardingModal';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useHabits } from '@/contexts/HabitContext';
 import { useInsights } from '@/hooks/useInsights';
 import { getEffectiveDate, getDayName, getMonthName, isWeekend, isAfter8PM, getTomorrow } from '@/lib/dateUtils';
 import type { ReflectionMood, ReflectionReason } from '@/types/habit';
+
 
 const LAST_SIGNAL_KEY = 'habit-flow-last-signal';
 
@@ -43,6 +45,8 @@ function deduplicateSignalMessage(message: string, today: string): boolean {
 }
 
 export default function TodayPage() {
+  const addFormRef = useRef<HTMLDivElement>(null);
+
   const { 
     habits,
     completions,
@@ -57,6 +61,18 @@ export default function TodayPage() {
     saveDailyReflection,
     settings
   } = useHabits();
+
+  const hasHabits = habits.length > 0;
+
+  const scrollToAddForm = () => {
+    addFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // Small delay then focus the input inside AddHabitForm
+    setTimeout(() => {
+      const input = addFormRef.current?.querySelector('input');
+      input?.focus();
+    }, 400);
+  };
+
 
   const today = getEffectiveDate();
   const todayHabits = getHabitsForDate(today);
@@ -152,6 +168,9 @@ export default function TodayPage() {
 
   return (
     <Layout>
+      {/* Onboarding — only visible on first launch when no habits exist */}
+      <OnboardingModal hasHabits={hasHabits} onAddFirstHabit={scrollToAddForm} />
+
       <div className="space-y-6">
         {/* Header */}
         <motion.header 
@@ -227,8 +246,13 @@ export default function TodayPage() {
               : "No habits for today. Start by adding one below!"
             }
           />
-          
-          <AddHabitForm />
+
+          {/* Post-onboarding hint: shown once after first habit is added */}
+          <PostOnboardingHint hasHabits={hasHabits} />
+
+          <div ref={addFormRef}>
+            <AddHabitForm />
+          </div>
         </motion.section>
 
         {/* Paused Habits — collapsed by default */}
