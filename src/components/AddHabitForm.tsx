@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useHabits } from '@/contexts/HabitContext';
-import { HabitType } from '@/types/habit';
+import { HabitType, StreakMode } from '@/types/habit';
 import { cn } from '@/lib/utils';
 
 interface AddHabitFormProps {
@@ -14,21 +14,33 @@ interface AddHabitFormProps {
   className?: string;
 }
 
+const WEEKLY_TARGET_OPTIONS = [2, 3, 4, 5, 6];
+
 export function AddHabitForm({ onClose, className }: AddHabitFormProps) {
   const { addHabit } = useHabits();
   const [name, setName] = useState('');
   const [type, setType] = useState<HabitType>('daily');
   const [reminderTime, setReminderTime] = useState('');
+  const [streakMode, setStreakMode] = useState<StreakMode>('strict');
+  const [weeklyTarget, setWeeklyTarget] = useState(5);
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
 
-    addHabit(name.trim(), type, reminderTime || undefined);
+    addHabit(
+      name.trim(),
+      type,
+      reminderTime || undefined,
+      streakMode,
+      streakMode === 'goal' ? weeklyTarget : undefined
+    );
     setName('');
     setType('daily');
     setReminderTime('');
+    setStreakMode('strict');
+    setWeeklyTarget(5);
     setIsExpanded(false);
     onClose?.();
   };
@@ -37,6 +49,8 @@ export function AddHabitForm({ onClose, className }: AddHabitFormProps) {
     setName('');
     setType('daily');
     setReminderTime('');
+    setStreakMode('strict');
+    setWeeklyTarget(5);
     setIsExpanded(false);
     onClose?.();
   };
@@ -123,6 +137,70 @@ export function AddHabitForm({ onClose, className }: AddHabitFormProps) {
               </label>
             </div>
           </RadioGroup>
+        </div>
+
+        {/* Streak Mode */}
+        <div className="space-y-2">
+          <Label>Streak mode</Label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setStreakMode('strict')}
+              className={cn(
+                "flex flex-col items-start gap-0.5 p-3 rounded-lg border text-sm transition-all text-left",
+                streakMode === 'strict'
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/40"
+              )}
+            >
+              <span className="font-medium">Strict</span>
+              <span className="text-xs opacity-70">Every scheduled day</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setStreakMode('goal')}
+              className={cn(
+                "flex flex-col items-start gap-0.5 p-3 rounded-lg border text-sm transition-all text-left",
+                streakMode === 'goal'
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground hover:border-primary/40"
+              )}
+            >
+              <span className="font-medium">Goal-based</span>
+              <span className="text-xs opacity-70">X times per week</span>
+            </button>
+          </div>
+
+          {streakMode === 'goal' && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="pt-1 space-y-2"
+            >
+              <Label className="text-xs text-muted-foreground">Weekly target</Label>
+              <div className="flex gap-2">
+                {WEEKLY_TARGET_OPTIONS.map(t => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setWeeklyTarget(t)}
+                    className={cn(
+                      "flex-1 py-2 rounded-lg border text-sm font-medium transition-all",
+                      weeklyTarget === t
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/40"
+                    )}
+                  >
+                    {t}×
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Streak continues each week you hit {weeklyTarget}+ completions.
+              </p>
+            </motion.div>
+          )}
         </div>
 
         <div className="space-y-2">

@@ -23,6 +23,7 @@ export default function AnalyticsPage() {
     getCompletionTrend,
     getBestPerformanceDays,
     calculateStreak,
+    getWeeklyGoalProgress,
     getHabitsForDate,
     unlockedAchievements,
     saveMonthlySummary,
@@ -210,15 +211,25 @@ export default function AnalyticsPage() {
             <div className="space-y-2">
               {activeHabits.map(habit => {
                 const streak = calculateStreak(habit.id);
+                const isGoal = habit.streakMode === 'goal';
+                const goalProgress = isGoal ? getWeeklyGoalProgress(habit.id) : null;
                 return (
-                  <div key={habit.id} className="flex items-center justify-between">
-                    <span className="text-sm text-foreground truncate flex-1 mr-2">
-                      {habit.name}
-                    </span>
-                    <div className="flex items-center gap-1">
+                  <div key={habit.id} className="flex items-center justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-foreground truncate block">
+                        {habit.name}
+                      </span>
+                      {isGoal && goalProgress && (
+                        <span className="text-xs text-muted-foreground">
+                          {goalProgress.completed}/{goalProgress.target} this week
+                          {goalProgress.completed >= goalProgress.target && ' ✓'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
                       {streak > 0 && <span className="text-sm streak-flame">🔥</span>}
                       <span className={`text-sm font-medium ${streak > 0 ? 'text-streak' : 'text-muted-foreground'}`}>
-                        {streak} {streak === 1 ? 'day' : 'days'}
+                        {streak} {isGoal ? (streak === 1 ? 'week' : 'weeks') : (streak === 1 ? 'day' : 'days')}
                       </span>
                     </div>
                   </div>

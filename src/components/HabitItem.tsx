@@ -28,6 +28,7 @@ export function HabitItem({
     getFocusHabit, 
     setFocusHabit,
     calculateStreak,
+    getWeeklyGoalProgress,
     updateHabit,
     trackHabitEdit,
     pauseHabit,
@@ -39,6 +40,8 @@ export function HabitItem({
   const isCompleted = isPaused ? false : getCompletion(habit.id, date);
   const isFocused = isPaused ? false : getFocusHabit(date) === habit.id;
   const streak = isPaused ? 0 : calculateStreak(habit.id);
+  const isGoalMode = habit.streakMode === 'goal';
+  const goalProgress = (!isPaused && isGoalMode) ? getWeeklyGoalProgress(habit.id) : null;
 
   const handleToggle = () => {
     if (readOnly || isPaused) return;
@@ -126,15 +129,32 @@ export function HabitItem({
           {habit.name}
         </span>
 
-        {/* Streak badge */}
-        {!isPaused && streak > 0 && (
+        {/* Streak badge — strict mode */}
+        {!isPaused && !isGoalMode && streak > 0 && (
           <motion.span 
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-streak bg-streak-muted px-2 py-0.5 rounded-full"
           >
             <span className="streak-flame">🔥</span>
-            {streak}
+            {streak}d
+          </motion.span>
+        )}
+
+        {/* Goal progress badge */}
+        {!isPaused && isGoalMode && goalProgress && (
+          <motion.span
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={cn(
+              "ml-2 inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full",
+              goalProgress.completed >= goalProgress.target
+                ? "text-streak bg-streak-muted"
+                : "text-muted-foreground bg-muted"
+            )}
+          >
+            {goalProgress.completed >= goalProgress.target && <span className="streak-flame">🔥</span>}
+            {goalProgress.completed}/{goalProgress.target}
           </motion.span>
         )}
       </div>

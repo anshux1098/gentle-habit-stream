@@ -24,6 +24,67 @@ import {
 } from '@/lib/dateUtils';
 import { toast } from 'sonner';
 
+/**
+ * Calculate goal-based streak in weeks.
+ * A week "counts" if the habit was completed >= weeklyTarget times in that week
+ * (only counting days it was scheduled and up to today).
+ */
+function calculateGoalBasedStreakWeeks(
+  habitId: string,
+  habitType: Habit['type'],
+  weeklyTarget: number,
+  completions: Completion[]
+): number {
+  const today = getEffectiveDate();
+  const currentWeekStart = getWeekStart(today);
+
+  // Build list of week starts going back up to 52 weeks, most-recent first
+  const weekStarts: string[] = [currentWeekStart];
+  for (let i = 1; i <= 52; i++) {
+    const d = new Date(currentWeekStart);
+    d.setDate(d.getDate() - i * 7);
+    weekStarts.push(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    );
+  }
+
+  let streak = 0;
+  for (const weekStart of weekStarts) {
+    // Collect all 7 days of this week up to today
+    const days: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (ds <= today) days.push(ds);
+    }
+
+    const scheduledDays = days.filter(d => isHabitScheduledForDate(habitType, d));
+    if (scheduledDays.length === 0) {
+      if (weekStart === currentWeekStart) continue; // current week not started yet
+      break;
+    }
+
+    const completedCount = scheduledDays.filter(d =>
+      completions.some(c => c.habitId === habitId && c.date === d && c.completed)
+    ).length;
+
+    if (weekStart === currentWeekStart) {
+      // Current week: count it if target already met; otherwise keep streak alive but don't count
+      if (completedCount >= weeklyTarget) streak++;
+      continue;
+    }
+
+    if (completedCount >= weeklyTarget) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
 const STORAGE_KEY = 'habit-flow-data';
 const MAX_BACKUPS = 7;
 
@@ -90,7 +151,13 @@ export function useHabitData() {
   }, []);
 
   // Add habit
-  const addHabit = useCallback((name: string, type: Habit['type'], reminderTime?: string) => {
+  const addHabit = useCallback((
+    name: string,
+    type: Habit['type'],
+    reminderTime?: string,
+    streakMode?: Habit['streakMode'],
+    weeklyTarget?: number
+  ) => {
     const newHabit: Habit = {
       id: generateId(),
       name,
@@ -98,6 +165,8 @@ export function useHabitData() {
       createdAt: new Date().toISOString(),
       active: true,
       reminderTime,
+      streakMode: streakMode ?? 'strict',
+      weeklyTarget: streakMode === 'goal' ? weeklyTarget : undefined,
     };
 
     setData(prev => ({
@@ -270,11 +339,17 @@ export function useHabitData() {
     }));
   }, []);
 
-  // Calculate streak for a habit
+  // Calculate streak for a habit — respects streakMode
   const calculateStreak = useCallback((habitId: string): number => {
     const habit = data.habits.find(h => h.id === habitId);
     if (!habit) return 0;
 
+    // Goal-based mode: streak counted in weeks
+    if (habit.streakMode === 'goal' && habit.weeklyTarget) {
+      return calculateGoalBasedStreakWeeks(habitId, habit.type, habit.weeklyTarget, data.completions);
+    }
+
+    // Strict mode (default)
     const today = getEffectiveDate();
     let streak = 0;
     let currentDate = today;
@@ -292,7 +367,6 @@ export function useHabitData() {
         if (completion) {
           streak++;
         } else {
-          // If it's today and not completed yet, continue checking
           if (currentDate === today) {
             // Don't break yet, just don't count
           } else {
@@ -335,6 +409,33 @@ export function useHabitData() {
 
     return streak;
   }, [data.habits, data.completions, data.unlockedAchievements]);
+
+  /**
+   * Returns current-week progress for a goal-based habit.
+   * { completed, target, scheduledThisWeek }
+   */
+  const getWeeklyGoalProgress = useCallback((habitId: string): { completed: number; target: number; scheduledThisWeek: number } | null => {
+    const habit = data.habits.find(h => h.id === habitId);
+    if (!habit || habit.streakMode !== 'goal' || !habit.weeklyTarget) return null;
+
+    const today = getEffectiveDate();
+    const weekStart = getWeekStart(today);
+
+    const days: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (ds <= today) days.push(ds);
+    }
+
+    const scheduledDays = days.filter(d => isHabitScheduledForDate(habit.type, d));
+    const completed = scheduledDays.filter(d =>
+      data.completions.some(c => c.habitId === habitId && c.date === d && c.completed)
+    ).length;
+
+    return { completed, target: habit.weeklyTarget, scheduledThisWeek: scheduledDays.length };
+  }, [data.habits, data.completions]);
 
   // Get habits for a specific date (excludes paused habits)
   const getHabitsForDate = useCallback((date: string = getEffectiveDate()): Habit[] => {
@@ -638,6 +739,7 @@ export function useHabitData() {
 
     // Analytics
     calculateStreak,
+    getWeeklyGoalProgress,
     getHabitsForDate,
     getDailyCompletionPercentage,
     getWeeklyAverage,

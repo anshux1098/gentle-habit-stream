@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Habit, HabitType } from '@/types/habit';
+import { Habit, HabitType, StreakMode } from '@/types/habit';
 import { cn } from '@/lib/utils';
 
 interface EditHabitModalProps {
@@ -19,10 +20,14 @@ const SCHEDULE_OPTIONS: { value: HabitType; label: string; description: string }
   { value: 'weekend', label: 'Weekends', description: 'Sat–Sun' },
 ];
 
+const WEEKLY_TARGET_OPTIONS = [2, 3, 4, 5, 6];
+
 export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitModalProps) {
   const [name, setName] = useState(habit.name);
   const [type, setType] = useState<HabitType>(habit.type);
   const [reminderTime, setReminderTime] = useState(habit.reminderTime || '');
+  const [streakMode, setStreakMode] = useState<StreakMode>(habit.streakMode ?? 'strict');
+  const [weeklyTarget, setWeeklyTarget] = useState(habit.weeklyTarget ?? 5);
 
   // Reset form when habit changes
   const handleOpenChange = (isOpen: boolean) => {
@@ -30,6 +35,8 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
       setName(habit.name);
       setType(habit.type);
       setReminderTime(habit.reminderTime || '');
+      setStreakMode(habit.streakMode ?? 'strict');
+      setWeeklyTarget(habit.weeklyTarget ?? 5);
     }
     onOpenChange(isOpen);
   };
@@ -46,6 +53,20 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
     if (reminderTime !== (habit.reminderTime || '')) {
       updates.reminderTime = reminderTime || undefined;
     }
+    if (streakMode !== (habit.streakMode ?? 'strict')) {
+      updates.streakMode = streakMode;
+    }
+    if (streakMode === 'goal' && weeklyTarget !== (habit.weeklyTarget ?? 5)) {
+      updates.weeklyTarget = weeklyTarget;
+    }
+    if (streakMode === 'strict' && habit.streakMode === 'goal') {
+      updates.weeklyTarget = undefined;
+    }
+    // Always sync streakMode if switching
+    if (streakMode !== (habit.streakMode ?? 'strict')) {
+      updates.streakMode = streakMode;
+      updates.weeklyTarget = streakMode === 'goal' ? weeklyTarget : undefined;
+    }
 
     if (Object.keys(updates).length > 0) {
       onSave(updates, scheduleChanged);
@@ -53,7 +74,12 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
     onOpenChange(false);
   };
 
-  const hasChanges = name.trim() !== habit.name || type !== habit.type || reminderTime !== (habit.reminderTime || '');
+  const hasChanges =
+    name.trim() !== habit.name ||
+    type !== habit.type ||
+    reminderTime !== (habit.reminderTime || '') ||
+    streakMode !== (habit.streakMode ?? 'strict') ||
+    (streakMode === 'goal' && weeklyTarget !== (habit.weeklyTarget ?? 5));
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -99,6 +125,69 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
               <p className="text-xs text-muted-foreground mt-1">
                 Changing schedule preserves your completion history. Your streak will continue on the new schedule.
               </p>
+            )}
+          </div>
+
+          {/* Streak Mode */}
+          <div className="space-y-2">
+            <Label>Streak mode</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setStreakMode('strict')}
+                className={cn(
+                  "flex flex-col items-start gap-0.5 p-3 rounded-lg border text-sm transition-all text-left",
+                  streakMode === 'strict'
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                )}
+              >
+                <span className="font-medium">Strict</span>
+                <span className="text-xs opacity-70">Every scheduled day</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setStreakMode('goal')}
+                className={cn(
+                  "flex flex-col items-start gap-0.5 p-3 rounded-lg border text-sm transition-all text-left",
+                  streakMode === 'goal'
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                )}
+              >
+                <span className="font-medium">Goal-based</span>
+                <span className="text-xs opacity-70">X times per week</span>
+              </button>
+            </div>
+
+            {streakMode === 'goal' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="pt-1 space-y-2"
+              >
+                <Label className="text-xs text-muted-foreground">Weekly target</Label>
+                <div className="flex gap-2">
+                  {WEEKLY_TARGET_OPTIONS.map(t => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setWeeklyTarget(t)}
+                      className={cn(
+                        "flex-1 py-2 rounded-lg border text-sm font-medium transition-all",
+                        weeklyTarget === t
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-card text-muted-foreground hover:border-primary/40"
+                      )}
+                    >
+                      {t}×
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Streak continues each week you hit {weeklyTarget}+ completions.
+                </p>
+              </motion.div>
             )}
           </div>
 
