@@ -2,6 +2,8 @@
 
 export type HabitType = 'daily' | 'weekday' | 'weekend';
 
+export type StreakMode = 'strict' | 'goal';
+
 export interface Habit {
   id: string;
   name: string;
@@ -10,6 +12,8 @@ export interface Habit {
   active: boolean;
   pausedAt?: string; // ISO timestamp — when habit was paused
   reminderTime?: string; // HH:MM format
+  streakMode?: StreakMode; // defaults to 'strict' for backward compatibility
+  weeklyTarget?: number; // only used when streakMode === 'goal'; e.g. 5 means 5 out of 7 days
 }
 
 export interface Completion {
