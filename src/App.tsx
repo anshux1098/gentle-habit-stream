@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HabitProvider } from "@/contexts/HabitContext";
 import { useTheme } from "@/hooks/useTheme";
+import { useHabitReminders } from "@/hooks/useHabitReminders";
 import TodayPage from "./pages/TodayPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReviewPage from "./pages/ReviewPage";
@@ -14,8 +15,9 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppContent() {
-  // Initialize theme
+  // Initialize theme and reminders
   useTheme();
+  useHabitReminders();
   
   return (
     <Routes>
