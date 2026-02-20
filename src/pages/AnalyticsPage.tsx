@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, Flame, Target, Calendar, Trophy } from 'lucide-react';
+import { WeeklySummaryShare } from '@/components/WeeklySummaryShare';
 import { Layout } from '@/components/Layout';
 import { StatCard } from '@/components/StatCard';
 import { ProgressRing } from '@/components/ProgressRing';
@@ -9,7 +10,7 @@ import { MonthlySummaryCard } from '@/components/MonthlySummaryCard';
 import { useHabits } from '@/contexts/HabitContext';
 import { useInsights } from '@/hooks/useInsights';
 import { ACHIEVEMENTS } from '@/types/habit';
-import { getCurrentMonth, getPreviousMonth } from '@/lib/dateUtils';
+import { getCurrentMonth, getPreviousMonth, getWeekStart, getEffectiveDate, getLastNDays, getMonthName, isHabitScheduledForDate } from '@/lib/dateUtils';
 
 export default function AnalyticsPage() {
   const {
@@ -31,6 +32,7 @@ export default function AnalyticsPage() {
     getInsightOutcomes,
     getDailyReflections,
     getHabitEditHistory,
+    getCurrentWeeklyInsight,
   } = useHabits();
 
   const {
@@ -82,6 +84,47 @@ export default function AnalyticsPage() {
 
   const activeHabits = habits.filter(h => h.active);
 
+  // Compute weekly share data
+  const weeklyShareData = useMemo(() => {
+    const today = getEffectiveDate();
+    const weekStart = getWeekStart(today);
+    const last7 = getLastNDays(7);
+
+    // Week range display
+    const wsDate = new Date(weekStart);
+    const weDate = new Date(wsDate);
+    weDate.setDate(weDate.getDate() + 6);
+    const startLabel = `${getMonthName(weekStart, true)} ${wsDate.getDate()}`;
+    const endLabel = weDate.getMonth() !== wsDate.getMonth()
+      ? `${getMonthName(`${weDate.getFullYear()}-${String(weDate.getMonth() + 1).padStart(2, '0')}-${String(weDate.getDate()).padStart(2, '0')}`, true)} ${weDate.getDate()}`
+      : String(weDate.getDate());
+    const weekRange = `${startLabel} – ${endLabel}`;
+
+    // Perfect days this week
+    let perfect = 0;
+    for (const d of last7) {
+      const scheduled = habits.filter(h => h.active && !h.pausedAt && isHabitScheduledForDate(h.type, d));
+      if (scheduled.length === 0) continue;
+      const allDone = scheduled.every(h => completions.some(c => c.habitId === h.id && c.date === d && c.completed));
+      if (allDone) perfect++;
+    }
+
+    // Focus rate: use weekly average as a privacy-safe proxy
+    const focusRate = weeklyAverage;
+
+    // AI insight summary (from current weekly insight if available)
+    const currentInsight = getCurrentWeeklyInsight?.();
+    const insightSummary = currentInsight?.focusSuggestion;
+
+    return {
+      weekRange,
+      completionPercentage: weeklyAverage,
+      perfectDays: perfect,
+      focusHabitRate: focusRate,
+      insightSummary,
+    };
+  }, [habits, completions, weeklyAverage, getCurrentWeeklyInsight]);
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -91,7 +134,12 @@ export default function AnalyticsPage() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-1"
         >
-          <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-foreground">Analytics</h1>
+            {activeHabits.length > 0 && (
+              <WeeklySummaryShare data={weeklyShareData} />
+            )}
+          </div>
           <p className="text-muted-foreground">Track your progress over time</p>
         </motion.header>
 
