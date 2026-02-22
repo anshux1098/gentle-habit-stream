@@ -1,0 +1,294 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Habit Flow Design System
+   A calm, minimal habit tracker with low-pressure UX
+   Colors: Sage greens, warm neutrals, soft accents
+*/
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+
+@layer base {
+  :root {
+    /* Warm, calm palette */
+    --background: 40 20% 98%;
+    --foreground: 40 10% 15%;
+
+    --card: 40 25% 99%;
+    --card-foreground: 40 10% 15%;
+
+    --popover: 40 25% 99%;
+    --popover-foreground: 40 10% 15%;
+
+    /* Sage green primary */
+    --primary: 145 30% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Warm secondary */
+    --secondary: 40 20% 94%;
+    --secondary-foreground: 40 10% 25%;
+
+    --muted: 40 15% 92%;
+    --muted-foreground: 40 10% 45%;
+
+    /* Soft sage accent */
+    --accent: 145 25% 92%;
+    --accent-foreground: 145 30% 30%;
+
+    --destructive: 0 65% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 15% 88%;
+    --input: 40 15% 88%;
+    --ring: 145 30% 45%;
+
+    --radius: 0.75rem;
+
+    /* Custom semantic colors */
+    --success: 145 45% 50%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 145 30% 94%;
+    
+    --warning: 35 85% 55%;
+    --warning-foreground: 0 0% 100%;
+    --warning-muted: 35 60% 94%;
+    
+    --streak: 25 80% 55%;
+    --streak-foreground: 0 0% 100%;
+    --streak-muted: 25 60% 94%;
+    
+    --focus: 200 75% 55%;
+    --focus-foreground: 0 0% 100%;
+    --focus-muted: 200 50% 94%;
+
+    /* Habit completion states */
+    --completed: 145 45% 50%;
+    --pending: 40 15% 75%;
+    --missed: 0 50% 60%;
+
+    /* Progress gradients */
+    --gradient-success: linear-gradient(135deg, hsl(145 45% 55%), hsl(145 40% 45%));
+    --gradient-streak: linear-gradient(135deg, hsl(25 85% 60%), hsl(35 80% 55%));
+    --gradient-focus: linear-gradient(135deg, hsl(200 75% 55%), hsl(180 60% 50%));
+    --gradient-calm: linear-gradient(135deg, hsl(40 20% 98%), hsl(145 20% 96%));
+
+    /* Shadows */
+    --shadow-sm: 0 1px 2px hsl(40 10% 15% / 0.04);
+    --shadow-md: 0 4px 12px hsl(40 10% 15% / 0.06);
+    --shadow-lg: 0 8px 24px hsl(40 10% 15% / 0.08);
+    --shadow-glow: 0 0 20px hsl(145 30% 45% / 0.15);
+
+    /* Sidebar */
+    --sidebar-background: 40 25% 97%;
+    --sidebar-foreground: 40 10% 25%;
+    --sidebar-primary: 145 30% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 145 25% 92%;
+    --sidebar-accent-foreground: 145 30% 30%;
+    --sidebar-border: 40 15% 90%;
+    --sidebar-ring: 145 30% 45%;
+  }
+
+  .dark {
+    --background: 40 10% 8%;
+    --foreground: 40 10% 92%;
+
+    --card: 40 10% 10%;
+    --card-foreground: 40 10% 92%;
+
+    --popover: 40 10% 10%;
+    --popover-foreground: 40 10% 92%;
+
+    --primary: 145 35% 55%;
+    --primary-foreground: 40 10% 8%;
+
+    --secondary: 40 10% 15%;
+    --secondary-foreground: 40 10% 85%;
+
+    --muted: 40 10% 18%;
+    --muted-foreground: 40 10% 60%;
+
+    --accent: 145 20% 18%;
+    --accent-foreground: 145 35% 75%;
+
+    --destructive: 0 55% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 40 10% 20%;
+    --input: 40 10% 20%;
+    --ring: 145 35% 55%;
+
+    /* Custom semantic colors - dark mode */
+    --success: 145 40% 55%;
+    --success-foreground: 40 10% 8%;
+    --success-muted: 145 25% 18%;
+    
+    --warning: 35 75% 55%;
+    --warning-foreground: 40 10% 8%;
+    --warning-muted: 35 40% 18%;
+    
+    --streak: 25 70% 55%;
+    --streak-foreground: 40 10% 8%;
+    --streak-muted: 25 40% 18%;
+    
+    --focus: 200 65% 55%;
+    --focus-foreground: 40 10% 8%;
+    --focus-muted: 200 35% 18%;
+
+    --completed: 145 40% 55%;
+    --pending: 40 10% 35%;
+    --missed: 0 45% 50%;
+
+    --gradient-success: linear-gradient(135deg, hsl(145 40% 50%), hsl(145 35% 40%));
+    --gradient-streak: linear-gradient(135deg, hsl(25 75% 55%), hsl(35 70% 50%));
+    --gradient-focus: linear-gradient(135deg, hsl(200 65% 50%), hsl(180 50% 45%));
+    --gradient-calm: linear-gradient(135deg, hsl(40 10% 10%), hsl(145 15% 12%));
+
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.2);
+    --shadow-md: 0 4px 12px hsl(0 0% 0% / 0.3);
+    --shadow-lg: 0 8px 24px hsl(0 0% 0% / 0.4);
+    --shadow-glow: 0 0 20px hsl(145 35% 55% / 0.2);
+
+    --sidebar-background: 40 10% 10%;
+    --sidebar-foreground: 40 10% 85%;
+    --sidebar-primary: 145 35% 55%;
+    --sidebar-primary-foreground: 40 10% 8%;
+    --sidebar-accent: 145 20% 18%;
+    --sidebar-accent-foreground: 145 35% 75%;
+    --sidebar-border: 40 10% 18%;
+    --sidebar-ring: 145 35% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+}
+
+@layer components {
+  /* Habit checkbox animation */
+  .habit-checkbox {
+    @apply relative transition-all duration-300;
+  }
+
+  .habit-checkbox.checked {
+    @apply scale-105;
+  }
+
+  /* Card hover effects */
+  .card-hover {
+    @apply transition-all duration-200;
+  }
+
+  .card-hover:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+
+  /* Progress ring */
+  .progress-ring {
+    transform: rotate(-90deg);
+  }
+
+  .progress-ring circle {
+    transition: stroke-dashoffset 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Streak flame animation */
+  @keyframes flame-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.1); opacity: 0.9; }
+  }
+
+  .streak-flame {
+    animation: flame-pulse 2s ease-in-out infinite;
+  }
+
+  /* Gentle fade-in */
+  @keyframes fade-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
+  /* Completion celebration */
+  @keyframes celebrate {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+  }
+
+  .celebrate {
+    animation: celebrate 0.4s ease-out;
+  }
+
+  /* Soft pulse for focus habit */
+  @keyframes soft-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 hsl(var(--focus) / 0.3); }
+    50% { box-shadow: 0 0 0 8px hsl(var(--focus) / 0); }
+  }
+
+  .focus-pulse {
+    animation: soft-pulse 3s ease-in-out infinite;
+  }
+
+  /* Glass morphism effect */
+  .glass {
+    background: hsl(var(--background) / 0.8);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: var(--gradient-success);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+@layer utilities {
+  /* Safe area insets for mobile */
+  .safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .safe-top {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+}
