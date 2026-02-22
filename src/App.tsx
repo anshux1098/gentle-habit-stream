@@ -1,6 +1,9 @@
 import { Toaster } from "@/components/ui/toaster";
+<<<<<<< HEAD
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect } from "react";
+=======
+>>>>>>> 7b40e748683fc417947b9c31f02a3477472a80cf
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -17,6 +20,7 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 function AppContent() {
+<<<<<<< HEAD
   useTheme();
   useHabitReminders();
 
@@ -32,6 +36,12 @@ function AppContent() {
 
     testRead();
   }, []);
+=======
+  // Initialize theme and reminders
+  useTheme();
+  useHabitReminders();
+  
+>>>>>>> 7b40e748683fc417947b9c31f02a3477472a80cf
   return (
     <Routes>
       <Route path="/" element={<TodayPage />} />
