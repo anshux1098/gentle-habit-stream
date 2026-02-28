@@ -210,7 +210,6 @@ export function useHabitData() {
         reminder_time: reminderTime ?? null,
         streak_mode: streakMode ?? "strict",
         weekly_target: weeklyTarget ?? null,
-        created_at: new Date().toISOString(),
         user_id: user.id,
         is_paused: false,
       }]);
