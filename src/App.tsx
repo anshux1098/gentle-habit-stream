@@ -1,19 +1,22 @@
 import { Toaster } from "@/components/ui/toaster";
+import Header from "@/components/Header";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HabitProvider } from "@/contexts/HabitContext";
-import { AuthProvider } from "@/contexts/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
 import { useHabitReminders } from "@/hooks/useHabitReminders";
-import ProtectedRoute from "@/components/ProtectedRoute";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+import { Auth } from "@supabase/auth-ui-react";
+import { ThemeSupa } from "@supabase/auth-ui-shared";
+
 import TodayPage from "./pages/TodayPage";
 import AnalyticsPage from "./pages/AnalyticsPage";
 import ReviewPage from "./pages/ReviewPage";
 import SettingsPage from "./pages/SettingsPage";
-import LoginPage from "./pages/LoginPage";
-import SignupPage from "./pages/SignupPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -21,23 +24,55 @@ const queryClient = new QueryClient();
 function AppContent() {
   useTheme();
   useHabitReminders();
+
   return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/" element={<ProtectedRoute><TodayPage /></ProtectedRoute>} />
-      <Route path="/analytics" element={<ProtectedRoute><AnalyticsPage /></ProtectedRoute>} />
-      <Route path="/review" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
-      <Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <>
+      <Header />
+      <Routes>
+        <Route path="/" element={<TodayPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/review" element={<ReviewPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </>
   );
 }
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
+function App() {
+  const [session, setSession] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        setSession(session);
+      }
+    );
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  if (loading) return <div style={{ padding: 40 }}>Loading...</div>;
+
+  if (!session) {
+    return (
+      <div style={{ maxWidth: 420, margin: "100px auto" }}>
+        <Auth supabaseClient={supabase} appearance={{ theme: ThemeSupa }} />
+      </div>
+    );
+  }
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
         <HabitProvider>
           <Toaster />
           <Sonner />
@@ -45,9 +80,9 @@ const App = () => (
             <AppContent />
           </BrowserRouter>
         </HabitProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

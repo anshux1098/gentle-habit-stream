@@ -1,22 +1,23 @@
 import { useState, useEffect, useCallback } from 'react';
-import { 
-  HabitFlowData, 
-  INITIAL_DATA, 
-  Habit, 
-  Completion, 
-  WeeklyReview, 
-  FocusHabit, 
-  UserSettings, 
+import { supabase } from "@/integrations/supabase/client";
+import {
+  HabitFlowData,
+  INITIAL_DATA,
+  Habit,
+  Completion,
+  WeeklyReview,
+  FocusHabit,
+  UserSettings,
   ACHIEVEMENTS,
   MonthlySummary,
   WeeklyInsight
 } from '@/types/habit';
-import { 
-  getEffectiveDate, 
-  getLastNDays, 
-  isHabitScheduledForDate, 
-  isWeekend, 
-  getWeekStart, 
+import {
+  getEffectiveDate,
+  getLastNDays,
+  isHabitScheduledForDate,
+  isWeekend,
+  getWeekStart,
   daysSince,
   getCurrentMonth,
   isLastDayOfMonth,
@@ -120,53 +121,117 @@ function saveData(data: HabitFlowData): void {
  * Main hook for habit data management
  */
 export function useHabitData() {
-  const [data, setData] = useState<HabitFlowData>(() => loadData());
-
-  // Persist to localStorage whenever data changes
+  const [data, setData] = useState<HabitFlowData>(INITIAL_DATA);
   useEffect(() => {
-    saveData(data);
-  }, [data]);
 
-  // Daily backup (once per day)
-  useEffect(() => {
-    const today = getEffectiveDate();
-    const lastBackup = data.backups[0]?.date;
-    
-    if (lastBackup !== today && data.habits.length > 0) {
-      const backup = {
-        date: today,
-        data: JSON.stringify({ ...data, backups: [] }),
-      };
-      
+    const loadUserData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.user) {
+        return;
+      }
+
+      const user = session.user;
+
+      const { data: habits, error: habitsError } = await supabase
+        .from("habits")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (habitsError) {
+        console.error("Habit fetch error:", habitsError);
+        return;
+      }
+
+      const { data: completions, error: completionsError } = await supabase
+        .from("completions")
+        .select("*")
+        .eq("user_id", user.id);
+
+      if (completionsError) {
+        console.error("Completion fetch error:", completionsError);
+        return;
+      }
+
+      // Map habits
+      const mappedHabits = (habits || []).map(h => ({
+        id: h.id,
+        name: h.name,
+        type: h.schedule_type,
+        createdAt: h.created_at,
+        active: true,
+        reminderTime: h.reminder_time,
+        streakMode: h.streak_mode,
+        weeklyTarget: h.weekly_target ?? undefined,
+      }));
+
+      // 🔥 FIX: Map completions properly
+      const mappedCompletions = (completions || []).map(c => ({
+        habitId: c.habit_id,
+        date: c.date,
+        completed: c.completed,
+        completedAt: c.completed ? new Date().toISOString() : undefined,
+      }));
+
       setData(prev => ({
         ...prev,
-        backups: [backup, ...prev.backups].slice(0, MAX_BACKUPS),
+        habits: mappedHabits,
+        completions: mappedCompletions,
       }));
-    }
-  }, [data.habits.length, data.backups]);
+    };
 
-  // Generate unique ID
-  const generateId = useCallback(() => {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    loadUserData();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(() => {
+      loadUserData();
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+    };
+
   }, []);
-
-  // Add habit
-  const addHabit = useCallback((
+  const addHabit = useCallback(async (
     name: string,
     type: Habit['type'],
     reminderTime?: string,
     streakMode?: Habit['streakMode'],
     weeklyTarget?: number
   ) => {
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("habits")
+      .insert([{
+        name,
+        schedule_type: type,
+        reminder_time: reminderTime ?? null,
+        streak_mode: streakMode ?? "strict",
+        weekly_target: weeklyTarget ?? null,
+        created_at: new Date().toISOString(),
+        user_id: user.id,
+        is_paused: false,
+      }])
+      .select();
+
+    if (error || !data) {
+      console.error("Add habit error:", error);
+      return;
+    }
+
+    const h = data[0];
+
     const newHabit: Habit = {
-      id: generateId(),
-      name,
-      type,
-      createdAt: new Date().toISOString(),
+      id: h.id,
+      name: h.name,
+      type: h.schedule_type,
+      createdAt: h.created_at,
       active: true,
-      reminderTime,
-      streakMode: streakMode ?? 'strict',
-      weeklyTarget: streakMode === 'goal' ? weeklyTarget : undefined,
+      reminderTime: h.reminder_time,
+      streakMode: h.streak_mode,
+      weeklyTarget: h.weekly_target ?? undefined,
     };
 
     setData(prev => ({
@@ -174,37 +239,54 @@ export function useHabitData() {
       habits: [...prev.habits, newHabit],
     }));
 
-    return newHabit;
-  }, [generateId]);
+  }, []);
+  const updateHabit = useCallback(async (id: string, updates: Partial<Habit>) => {
 
-  // Update habit
-  const updateHabit = useCallback((id: string, updates: Partial<Habit>) => {
+    await supabase
+      .from("habits")
+      .update({
+        name: updates.name,
+        schedule_type: updates.type,
+        reminder_time: updates.reminderTime,
+        streak_mode: updates.streakMode,
+        weekly_target: updates.weeklyTarget ?? null,
+      })
+      .eq("id", id);
+
     setData(prev => ({
       ...prev,
-      habits: prev.habits.map(h => h.id === id ? { ...h, ...updates } : h),
+      habits: prev.habits.map(h =>
+        h.id === id ? { ...h, ...updates } : h
+      ),
     }));
-  }, []);
 
-  // Delete habit
-  const deleteHabit = useCallback((id: string) => {
+  }, []);
+  const deleteHabit = useCallback(async (id: string) => {
+
+    await supabase.from("habits").delete().eq("id", id);
+    await supabase.from("completions").delete().eq("habit_id", id);
+
     setData(prev => ({
       ...prev,
       habits: prev.habits.filter(h => h.id !== id),
       completions: prev.completions.filter(c => c.habitId !== id),
-      focusHabits: prev.focusHabits.filter(f => f.habitId !== id),
     }));
-  }, []);
 
-  // Pause habit
-  const pauseHabit = useCallback((id: string) => {
+  }, []);
+  const pauseHabit = useCallback(async (id: string) => {
+
+    await supabase
+      .from("habits")
+      .update({ is_paused: true })
+      .eq("id", id);
+
     setData(prev => ({
       ...prev,
-      habits: prev.habits.map(h => h.id === id ? { ...h, pausedAt: new Date().toISOString() } : h),
-      habitPauseHistory: [
-        ...(prev.habitPauseHistory || []),
-        { habitId: id, action: 'pause' as const, at: new Date().toISOString() }
-      ],
+      habits: prev.habits.map(h =>
+        h.id === id ? { ...h, pausedAt: new Date().toISOString() } : h
+      ),
     }));
+
   }, []);
 
   // Unpause habit
@@ -219,39 +301,67 @@ export function useHabitData() {
     }));
   }, []);
 
-  // Toggle completion
-  const toggleCompletion = useCallback((habitId: string, date: string = getEffectiveDate()) => {
+  // Toggle completion (DB-backed + achievements preserved)
+  const toggleCompletion = useCallback(async (
+    habitId: string,
+    date: string = getEffectiveDate()
+  ) => {
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      console.error("No authenticated user");
+      return;
+    }
+
+    // Check existing completion in DB
+    const { data: existing } = await supabase
+      .from("completions")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("habit_id", habitId)
+      .eq("date", date)
+      .maybeSingle();
+
+    let completedValue = true;
+
+    if (existing) {
+      completedValue = !existing.completed;
+    }
+
+    const { error } = await supabase
+      .from("completions")
+      .upsert({
+        habit_id: habitId,
+        date,
+        completed: completedValue,
+        user_id: user.id,
+      });
+
+    if (error) {
+      console.error("Completion upsert error:", error);
+      return;
+    }
+
+    // Refetch completions from DB
+    const { data: completions } = await supabase
+      .from("completions")
+      .select("*")
+      .eq("user_id", user.id);
+
+    const mappedCompletions = (completions || []).map(c => ({
+      habitId: c.habit_id,
+      date: c.date,
+      completed: c.completed,
+      completedAt: c.completed ? new Date().toISOString() : undefined,
+    }));
+
+    // Now update state + achievements
     setData(prev => {
-      const existingIndex = prev.completions.findIndex(
-        c => c.habitId === habitId && c.date === date
-      );
 
-      let newCompletions: Completion[];
-      let wasCompleted = false;
-
-      if (existingIndex >= 0) {
-        const existing = prev.completions[existingIndex];
-        wasCompleted = !existing.completed;
-        newCompletions = prev.completions.map((c, i) =>
-          i === existingIndex
-            ? { ...c, completed: wasCompleted, completedAt: wasCompleted ? new Date().toISOString() : undefined }
-            : c
-        );
-      } else {
-        wasCompleted = true;
-        newCompletions = [...prev.completions, {
-          habitId,
-          date,
-          completed: true,
-          completedAt: new Date().toISOString(),
-        }];
-      }
-
-      // Check for achievements
       let newAchievements = [...prev.unlockedAchievements];
 
       // First habit completed
-      if (wasCompleted && !newAchievements.includes('first_habit')) {
+      if (completedValue && !newAchievements.includes('first_habit')) {
         newAchievements.push('first_habit');
         if (prev.settings.milestoneCelebrations) {
           setTimeout(() => {
@@ -260,29 +370,37 @@ export function useHabitData() {
         }
       }
 
-      // Check for perfect day
-      if (wasCompleted) {
-        const habitsForDate = prev.habits.filter(h => h.active && isHabitScheduledForDate(h.type, date));
-        const completionsForDate = newCompletions.filter(c => c.date === date && c.completed);
-        
-        if (habitsForDate.length > 0 && completionsForDate.length === habitsForDate.length) {
-          if (!newAchievements.includes('first_perfect_day')) {
-            newAchievements.push('first_perfect_day');
-            if (prev.settings.milestoneCelebrations) {
-              setTimeout(() => {
-                toast.success('✨ Perfect Day!', { description: 'You completed all your habits today!' });
-              }, 300);
-            }
+      // Perfect day check
+      if (completedValue) {
+        const habitsForDate = prev.habits.filter(h =>
+          h.active && isHabitScheduledForDate(h.type, date)
+        );
+
+        const completionsForDate = mappedCompletions.filter(
+          c => c.date === date && c.completed
+        );
+
+        if (
+          habitsForDate.length > 0 &&
+          completionsForDate.length === habitsForDate.length &&
+          !newAchievements.includes('first_perfect_day')
+        ) {
+          newAchievements.push('first_perfect_day');
+          if (prev.settings.milestoneCelebrations) {
+            setTimeout(() => {
+              toast.success('✨ Perfect Day!', { description: 'You completed all your habits today!' });
+            }, 300);
           }
         }
       }
 
       return {
         ...prev,
-        completions: newCompletions,
+        completions: mappedCompletions,
         unlockedAchievements: newAchievements,
       };
     });
+
   }, []);
 
   // Get completion status
@@ -311,7 +429,7 @@ export function useHabitData() {
   // Save review
   const saveReview = useCallback((review: Omit<WeeklyReview, 'weekStart' | 'createdAt'>) => {
     const weekStart = getWeekStart(getEffectiveDate());
-    
+
     setData(prev => {
       const filtered = prev.reviews.filter(r => r.weekStart !== weekStart);
       return {
@@ -358,12 +476,12 @@ export function useHabitData() {
 
     while (daysChecked < maxDaysToCheck) {
       const isScheduled = isHabitScheduledForDate(habit.type, currentDate);
-      
+
       if (isScheduled) {
         const completion = data.completions.find(
           c => c.habitId === habitId && c.date === currentDate && c.completed
         );
-        
+
         if (completion) {
           streak++;
         } else {
@@ -374,7 +492,7 @@ export function useHabitData() {
           }
         }
       }
-      
+
       // Move to previous day
       const date = new Date(currentDate);
       date.setDate(date.getDate() - 1);

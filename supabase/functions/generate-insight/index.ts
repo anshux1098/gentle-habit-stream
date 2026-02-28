@@ -60,7 +60,7 @@ interface RequestBody {
 
 function getBaseSystemPrompt(userProfile: string, hasInsufficientData: boolean): string {
   let toneGuidance = '';
-  
+
   switch (userProfile) {
     case 'beginner':
       toneGuidance = `
@@ -131,7 +131,7 @@ serve(async (req) => {
   try {
     const { type, data } = await req.json() as RequestBody;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    
+
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
@@ -165,10 +165,10 @@ FORMAT: Return valid JSON with this exact structure:
       const reflections = data.recentReflections || [];
       const reflectionContext = reflections.length > 0
         ? `\nRECENT REFLECTIONS (user-reported):\n${reflections.map(r => {
-            const moodText = r.mood || 'not specified';
-            const reasonsText = r.reasons?.length ? r.reasons.join(', ') : 'none specified';
-            return `- ${r.date}: mood ${moodText}, challenges: ${reasonsText}`;
-          }).join('\n')}`
+          const moodText = r.mood || 'not specified';
+          const reasonsText = r.reasons?.length ? r.reasons.join(', ') : 'none specified';
+          return `- ${r.date}: mood ${moodText}, challenges: ${reasonsText}`;
+        }).join('\n')}`
         : '';
 
       // Build burnout signal context
@@ -184,11 +184,11 @@ FORMAT: Return valid JSON with this exact structure:
 - Consistency score: ${momentum.consistencyScore.toFixed(1)}%`;
 
       // Insight adaptation level affects recommendation complexity
-      const adaptationNote = data.insightAdaptation === 'simplified' 
+      const adaptationNote = data.insightAdaptation === 'simplified'
         ? '\nNote: Keep recommendations VERY simple - user tends to skip complex suggestions.'
         : data.insightAdaptation === 'advanced'
-        ? '\nNote: User follows recommendations well - can suggest slightly more nuanced improvements.'
-        : '';
+          ? '\nNote: User follows recommendations well - can suggest slightly more nuanced improvements.'
+          : '';
 
       userPrompt = `Analyze this week's habit data:
 
@@ -252,18 +252,18 @@ FORMAT: Return valid JSON with this exact structure:
         .map(h => `- ${h.name}: ${h.completionRate.toFixed(0)}% consistent`)
         .join('\n');
 
-      const fatigueWarning = data.habitsAddedThisMonth > 3 
-        ? `\nPotential over-ambition: ${data.habitsAddedThisMonth} habits added this month.` 
+      const fatigueWarning = data.habitsAddedThisMonth > 3
+        ? `\nPotential over-ambition: ${data.habitsAddedThisMonth} habits added this month.`
         : '';
 
       // Build reflection context for monthly view
       const reflections = data.recentReflections || [];
       const monthlyReflectionContext = reflections.length > 0
         ? `\nUSER REFLECTIONS THIS MONTH:\n${reflections.slice(0, 10).map(r => {
-            const moodText = r.mood || 'not specified';
-            const reasonsText = r.reasons?.length ? r.reasons.join(', ') : 'none specified';
-            return `- ${r.date}: mood ${moodText}, challenges: ${reasonsText}`;
-          }).join('\n')}`
+          const moodText = r.mood || 'not specified';
+          const reasonsText = r.reasons?.length ? r.reasons.join(', ') : 'none specified';
+          return `- ${r.date}: mood ${moodText}, challenges: ${reasonsText}`;
+        }).join('\n')}`
         : '';
 
       // Build burnout signal context
@@ -279,11 +279,11 @@ FORMAT: Return valid JSON with this exact structure:
 - Consistency score (sustained completions): ${momentum.consistencyScore.toFixed(1)}%`;
 
       // Insight adaptation level
-      const adaptationNote = data.insightAdaptation === 'simplified' 
+      const adaptationNote = data.insightAdaptation === 'simplified'
         ? '\nNote: Keep recommendations VERY simple - user tends to skip complex suggestions.'
         : data.insightAdaptation === 'advanced'
-        ? '\nNote: User follows recommendations well - can suggest slightly more nuanced improvements.'
-        : '';
+          ? '\nNote: User follows recommendations well - can suggest slightly more nuanced improvements.'
+          : '';
 
       userPrompt = `Analyze this month's habit data:
 
@@ -379,8 +379,8 @@ Provide monthly insights focusing on patterns, not judgment.`;
   } catch (error) {
     console.error("Error generating insight:", error);
     return new Response(
-      JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error occurred" 
+      JSON.stringify({
+        error: error instanceof Error ? error.message : "Unknown error occurred"
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
