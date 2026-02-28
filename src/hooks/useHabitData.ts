@@ -163,6 +163,7 @@ export function useHabitData() {
         reminderTime: h.reminder_time,
         streakMode: h.streak_mode,
         weeklyTarget: h.weekly_target ?? undefined,
+        pausedAt: h.is_paused ? new Date().toISOString() : undefined
       }));
 
       // 🔥 FIX: Map completions properly
@@ -263,9 +264,34 @@ export function useHabitData() {
   }, []);
   const deleteHabit = useCallback(async (id: string) => {
 
-    await supabase.from("habits").delete().eq("id", id);
-    await supabase.from("completions").delete().eq("habit_id", id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
+    // Delete completions first
+    const { error: completionError } = await supabase
+      .from("completions")
+      .delete()
+      .eq("habit_id", id)
+      .eq("user_id", user.id);
+
+    if (completionError) {
+      console.error("Delete completions error:", completionError);
+      return;
+    }
+
+    // Delete habit
+    const { error: habitError } = await supabase
+      .from("habits")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    if (habitError) {
+      console.error("Delete habit error:", habitError);
+      return;
+    }
+
+    // Update UI only after DB success
     setData(prev => ({
       ...prev,
       habits: prev.habits.filter(h => h.id !== id),
@@ -275,10 +301,14 @@ export function useHabitData() {
   }, []);
   const pauseHabit = useCallback(async (id: string) => {
 
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
     await supabase
       .from("habits")
       .update({ is_paused: true })
-      .eq("id", id);
+      .eq("id", id)
+      .eq("user_id", user.id);
 
     setData(prev => ({
       ...prev,
@@ -288,19 +318,25 @@ export function useHabitData() {
     }));
 
   }, []);
+  const unpauseHabit = useCallback(async (id: string) => {
 
-  // Unpause habit
-  const unpauseHabit = useCallback((id: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from("habits")
+      .update({ is_paused: false })
+      .eq("id", id)
+      .eq("user_id", user.id);
+
     setData(prev => ({
       ...prev,
-      habits: prev.habits.map(h => h.id === id ? { ...h, pausedAt: undefined } : h),
-      habitPauseHistory: [
-        ...(prev.habitPauseHistory || []),
-        { habitId: id, action: 'unpause' as const, at: new Date().toISOString() }
-      ],
+      habits: prev.habits.map(h =>
+        h.id === id ? { ...h, pausedAt: undefined } : h
+      ),
     }));
-  }, []);
 
+  }, []);
   // Toggle completion (DB-backed + achievements preserved)
   const toggleCompletion = useCallback(async (
     habitId: string,
