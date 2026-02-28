@@ -202,7 +202,7 @@ export function useHabitData() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from("habits")
       .insert([{
         name,
@@ -213,13 +213,14 @@ export function useHabitData() {
         created_at: new Date().toISOString(),
         user_id: user.id,
         is_paused: false,
-      }])
-      .select();
+      }]);
 
-    if (error || !data) {
+    if (error) {
       console.error("Add habit error:", error);
       return;
     }
+
+    await fetchHabits(); // or whatever your existing loader is
 
     const h = data[0];
 
