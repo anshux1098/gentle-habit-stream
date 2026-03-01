@@ -203,7 +203,7 @@ export function useHabitData() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("habits")
       .insert([{
         name,
@@ -211,9 +211,11 @@ export function useHabitData() {
         reminder_time: reminderTime ?? null,
         streak_mode: streakMode ?? "strict",
         weekly_target: weeklyTarget ?? null,
-        user_id: user.id,
+        user_id: user.id,   // THIS IS REQUIRED
         is_paused: false,
-      }]);
+      }])
+      .select()
+      .single();
 
     if (error) {
       console.error("Add habit error:", error);
