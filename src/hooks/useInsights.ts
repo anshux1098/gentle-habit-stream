@@ -1,11 +1,11 @@
 import { useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/lib/supabase";
 import { toast } from 'sonner';
-import type { 
-  Habit, 
-  Completion, 
-  WeeklyInsight, 
-  MonthlySummary, 
+import type {
+  Habit,
+  Completion,
+  WeeklyInsight,
+  MonthlySummary,
   UserProfile,
   HabitLoadLevel,
   HabitLoadExplanation,
@@ -19,11 +19,11 @@ import type {
   BurnoutIndicator,
   DailyReflection
 } from '@/types/habit';
-import { 
-  getEffectiveDate, 
-  getWeekStart, 
-  getLastNDays, 
-  isWeekend, 
+import {
+  getEffectiveDate,
+  getWeekStart,
+  getLastNDays,
+  isWeekend,
   isHabitScheduledForDate,
   getDaysInMonth,
   getDayName,
@@ -135,15 +135,15 @@ export function useInsights(
    */
   const getDropOffPatterns = useCallback((): Array<{ habitName: string; dropOffDay: number }> => {
     const patterns: Array<{ habitName: string; dropOffDay: number }> = [];
-    
+
     for (const habit of habits.filter(h => h.active)) {
       const last30Days = getLastNDays(30);
       const scheduledDays = last30Days.filter(d => isHabitScheduledForDate(habit.type, d));
-      
+
       // Look for streaks that break at consistent points
       let streakBreaks: number[] = [];
       let currentStreak = 0;
-      
+
       for (const date of scheduledDays.reverse()) {
         const completion = completions.find(c => c.habitId === habit.id && c.date === date && c.completed);
         if (completion) {
@@ -173,16 +173,16 @@ export function useInsights(
    */
   const getInsightAdaptation = useCallback((): InsightAdaptation => {
     if (insightOutcomes.length < 3) return 'standard';
-    
+
     const recentOutcomes = insightOutcomes.slice(-10);
     const ignoredCount = recentOutcomes.filter(o => o.outcome === 'no_change').length;
     const followedCount = recentOutcomes.filter(o => o.outcome === 'habit_paused' || o.outcome === 'frequency_reduced').length;
-    
+
     // If user ignores recommendations often, simplify
     if (ignoredCount >= 7) return 'simplified';
     // If user follows recommendations, allow more advanced suggestions
     if (followedCount >= 5) return 'advanced';
-    
+
     return 'standard';
   }, [insightOutcomes]);
 
@@ -204,9 +204,9 @@ export function useInsights(
       for (const date of last14Days.reverse()) {
         if (!isHabitScheduledForDate(habit.type, date)) continue;
         totalScheduledDays++;
-        
+
         const isCompleted = completions.find(c => c.habitId === habit.id && c.date === date && c.completed);
-        
+
         if (isCompleted) {
           completedDays++;
           if (inMissedStreak && missedStreakLength > 0) {
@@ -243,7 +243,7 @@ export function useInsights(
     let sameDayFailures = 0;
     for (const date of last14Days) {
       const habitsForDate = activeHabits.filter(h => isHabitScheduledForDate(h.type, date));
-      const completedForDate = habitsForDate.filter(h => 
+      const completedForDate = habitsForDate.filter(h =>
         completions.find(c => c.habitId === h.id && c.date === date && c.completed)
       );
       const missedCount = habitsForDate.length - completedForDate.length;
@@ -251,7 +251,7 @@ export function useInsights(
         sameDayFailures++;
       }
     }
-    
+
     if (sameDayFailures >= 4) {
       indicators.push({
         type: 'same_day_failures',
@@ -265,7 +265,7 @@ export function useInsights(
     // 2. Declining completion: compare first 7 days vs last 7 days
     const first7 = last14Days.slice(0, 7);
     const last7 = last14Days.slice(7);
-    
+
     const getAvgCompletion = (days: string[]) => {
       let total = 0;
       let count = 0;
@@ -278,7 +278,7 @@ export function useInsights(
 
     const firstWeekAvg = getAvgCompletion(first7);
     const lastWeekAvg = getAvgCompletion(last7);
-    
+
     if (firstWeekAvg > 60 && lastWeekAvg < firstWeekAvg - 20) {
       indicators.push({
         type: 'declining_completion',
@@ -290,10 +290,10 @@ export function useInsights(
     }
 
     // 3. Excessive edits: many habit edits in recent weeks
-    const recentEdits = habitEditHistory.filter(e => 
+    const recentEdits = habitEditHistory.filter(e =>
       daysSince(e.editedAt.split('T')[0]) <= 14
     ).length;
-    
+
     if (recentEdits >= 5) {
       indicators.push({
         type: 'excessive_edits',
@@ -365,7 +365,7 @@ export function useInsights(
   const getHabitLoadInfo = useCallback((): { level: HabitLoadLevel; explanation?: HabitLoadExplanation } => {
     const activeHabits = habits.filter(h => h.active);
     const habitCount = activeHabits.length;
-    
+
     if (habitCount === 0) return { level: 'light' };
 
     const last7Days = getLastNDays(7);
@@ -427,7 +427,7 @@ export function useInsights(
     const today = getEffectiveDate();
     const days = type === 'weekly' ? getLastNDays(7) : getLastNDays(30);
     const activeHabits = habits.filter(h => h.active);
-    
+
     let weekdayTotal = 0;
     let weekdayCount = 0;
     let weekendTotal = 0;
@@ -461,8 +461,8 @@ export function useInsights(
     // Find best and worst days
     const dayAverages = dayNames.map(day => ({
       day,
-      avg: dayStats[day].length > 0 
-        ? dayStats[day].reduce((a, b) => a + b, 0) / dayStats[day].length 
+      avg: dayStats[day].length > 0
+        ? dayStats[day].reduce((a, b) => a + b, 0) / dayStats[day].length
         : 0
     }));
 
@@ -474,14 +474,14 @@ export function useInsights(
     const enhancedHabits: EnhancedHabitInfo[] = activeHabits.map(h => {
       const ageInDays = daysSince(h.createdAt.split('T')[0]);
       const currentStreak = calculateStreak(h.id);
-      
+
       // Calculate completion rate for this habit
       const scheduledDays = days.filter(d => isHabitScheduledForDate(h.type, d));
-      const completedDays = scheduledDays.filter(d => 
+      const completedDays = scheduledDays.filter(d =>
         completions.find(c => c.habitId === h.id && c.date === d && c.completed)
       );
-      const completionRate = scheduledDays.length > 0 
-        ? (completedDays.length / scheduledDays.length) * 100 
+      const completionRate = scheduledDays.length > 0
+        ? (completedDays.length / scheduledDays.length) * 100
         : 0;
 
       return {
@@ -499,7 +499,7 @@ export function useInsights(
     const inactiveHabits: string[] = [];
     for (const habit of activeHabits) {
       const last30 = getLastNDays(30);
-      const hasCompletion = last30.some(date => 
+      const hasCompletion = last30.some(date =>
         completions.find(c => c.habitId === habit.id && c.date === date && c.completed)
       );
       if (!hasCompletion) {
@@ -519,7 +519,7 @@ export function useInsights(
 
     // Habits added this month
     const currentMonth = today.substring(0, 7);
-    const habitsAddedThisMonth = habits.filter(h => 
+    const habitsAddedThisMonth = habits.filter(h =>
       h.createdAt.startsWith(currentMonth)
     ).length;
 
@@ -538,7 +538,7 @@ export function useInsights(
     const hasInsufficientData = daysTracked < 7;
 
     // Get recent reflections (last 7 days)
-    const recentReflections = dailyReflections.filter(r => 
+    const recentReflections = dailyReflections.filter(r =>
       daysSince(r.date) <= 7
     );
 
@@ -578,10 +578,10 @@ export function useInsights(
    */
   const generateWeeklyInsight = useCallback(async (): Promise<WeeklyInsight | null> => {
     setIsLoadingWeekly(true);
-    
+
     try {
       const data = prepareInsightData('weekly');
-      
+
       const { data: response, error } = await supabase.functions.invoke('generate-insight', {
         body: { type: 'weekly', data }
       });
@@ -606,9 +606,9 @@ export function useInsights(
 
     } catch (error) {
       console.error('Error generating weekly insight:', error);
-      
+
       const message = error instanceof Error ? error.message : 'Failed to generate insight';
-      
+
       if (message.includes('Rate limit')) {
         toast.error('Rate limit exceeded', { description: 'Please try again later.' });
       } else if (message.includes('credits')) {
@@ -616,7 +616,7 @@ export function useInsights(
       } else {
         toast.error('Failed to generate insight', { description: message });
       }
-      
+
       return null;
     } finally {
       setIsLoadingWeekly(false);
@@ -628,10 +628,10 @@ export function useInsights(
    */
   const generateMonthlyInsight = useCallback(async (): Promise<MonthlyInsightItem[] | null> => {
     setIsLoadingMonthly(true);
-    
+
     try {
       const data = prepareInsightData('monthly');
-      
+
       const { data: response, error } = await supabase.functions.invoke('generate-insight', {
         body: { type: 'monthly', data }
       });
@@ -656,9 +656,9 @@ export function useInsights(
 
     } catch (error) {
       console.error('Error generating monthly insight:', error);
-      
+
       const message = error instanceof Error ? error.message : 'Failed to generate insight';
-      
+
       if (message.includes('Rate limit')) {
         toast.error('Rate limit exceeded', { description: 'Please try again later.' });
       } else if (message.includes('credits')) {
@@ -666,7 +666,7 @@ export function useInsights(
       } else {
         toast.error('Failed to generate insight', { description: message });
       }
-      
+
       return null;
     } finally {
       setIsLoadingMonthly(false);
@@ -679,7 +679,7 @@ export function useInsights(
   const generateMonthlySummary = useCallback((month: string): MonthlySummary | null => {
     const days = getDaysInMonth(month);
     const today = getEffectiveDate();
-    
+
     const relevantDays = days.filter(d => d <= today);
     if (relevantDays.length === 0) return null;
 
@@ -711,7 +711,7 @@ export function useInsights(
           habitStats[habit.id] = { scheduled: 0, completed: 0 };
         }
         habitStats[habit.id].scheduled++;
-        
+
         const completion = completions.find(c => c.habitId === habit.id && c.date === date);
         if (completion?.completed) {
           habitStats[habit.id].completed++;
@@ -723,8 +723,8 @@ export function useInsights(
 
     const dayAverages = dayNames.map(day => ({
       day,
-      avg: dayStats[day].length > 0 
-        ? dayStats[day].reduce((a, b) => a + b, 0) / dayStats[day].length 
+      avg: dayStats[day].length > 0
+        ? dayStats[day].reduce((a, b) => a + b, 0) / dayStats[day].length
         : 0
     }));
     const bestDay = dayAverages.sort((a, b) => b.avg - a.avg)[0]?.day || 'N/A';
@@ -762,12 +762,12 @@ export function useInsights(
         .sort((a, b) => b.date.localeCompare(a.date));
 
       const lastCompletion = habitCompletions[0]?.date;
-      
+
       if (!lastCompletion) {
         const createdDate = new Date(habit.createdAt);
         const now = new Date();
         const daysSinceCreation = Math.floor((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         if (daysSinceCreation >= 30) {
           suggestions.push({
             habitId: habit.id,
@@ -781,7 +781,7 @@ export function useInsights(
         const lastDate = new Date(lastCompletion);
         const now = new Date();
         const daysSince = Math.floor((now.getTime() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-        
+
         if (daysSince >= 30) {
           suggestions.push({
             habitId: habit.id,
@@ -808,7 +808,7 @@ export function useInsights(
     const now = new Date();
     // Weekly insights expire after the next review cycle (7 days)
     // Monthly summaries never expire but get archived when new month begins
-    const expiresAt = type === 'weekly' 
+    const expiresAt = type === 'weekly'
       ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString()
       : undefined;
 

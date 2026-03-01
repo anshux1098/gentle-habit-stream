@@ -8,7 +8,7 @@ import { HabitProvider } from "@/contexts/HabitContext";
 import { useTheme } from "@/hooks/useTheme";
 import { useHabitReminders } from "@/hooks/useHabitReminders";
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
