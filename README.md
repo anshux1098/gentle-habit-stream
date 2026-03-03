@@ -1,73 +1,80 @@
-# Welcome to your Lovable project
+Habit Flow
 
-## Project info
+Production-grade habit tracking system.
+Built for consistency. Not motivation.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Stack
 
-## How can I edit this code?
+React + TypeScript
 
-There are several ways of editing your application.
+Supabase (Auth + Postgres + RLS)
 
-**Use Lovable**
+Vercel
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+Single source of truth: Supabase.
+No localStorage data hacks.
+Strict row-level security.
 
-Changes made via Lovable will be committed automatically to this repo.
+Core Architecture
 
-**Use your preferred IDE**
+Centralized Supabase client
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+useHabitData as primary data layer
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+habits and completions tables
 
-Follow these steps:
+All queries scoped to auth.uid()
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+Multi-page structure (Today / Analytics / Review / Settings)
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+Stable in production.
 
-# Step 3: Install the necessary dependencies.
-npm i
+Features
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+Secure email authentication
 
-**Edit a file directly in GitHub**
+Habit CRUD
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+Pause / Unpause
 
-**Use GitHub Codespaces**
+Daily completion tracking
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+Streak calculation
 
-## What technologies are used for this project?
+Weekly performance metrics
 
-This project is built with:
+Consistency score
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Milestones
 
-## How can I deploy this project?
+Habit categories
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+Motivation notes
 
-## Can I connect a custom domain to my Lovable project?
+Focus mode
 
-Yes, you can!
+All data persisted.
+No fake state.
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+Design Philosophy
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Minimal interface.
+Clear metrics.
+No distractions.
+
+Track. Execute. Improve.
+
+Deployment
+
+Live on Vercel.
+Environment-isolated.
+Clean build pipeline.
+No stale artifacts.
+
+Status
+
+Stable.
+Scalable.
+Ready for expansion.
+
+Built by Anshuman Singh.
