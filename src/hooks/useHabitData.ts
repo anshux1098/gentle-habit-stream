@@ -217,14 +217,12 @@ export function useHabitData() {
       .select()
       .single();
 
-    if (error) {
+    if (error || !data) {
       console.error("Add habit error:", error);
       return;
     }
 
-    await fetchHabits(); // or whatever your existing loader is
-
-    const h = data[0];
+    const h = data;
 
     const newHabit: Habit = {
       id: h.id,
@@ -237,6 +235,7 @@ export function useHabitData() {
       weeklyTarget: h.weekly_target ?? undefined,
     };
 
+    // Optimistic: immediately add to state
     setData(prev => ({
       ...prev,
       habits: [...prev.habits, newHabit],

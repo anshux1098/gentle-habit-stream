@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { WeeklyInsightButton } from '@/components/WeeklyInsightButton';
+import { ReviewWeeklySummary } from '@/components/ReviewWeeklySummary';
 import { useHabits } from '@/contexts/HabitContext';
 import { useInsights } from '@/hooks/useInsights';
 import { isSunday, getEffectiveDate, getDayName, getMonthName } from '@/lib/dateUtils';
@@ -125,6 +126,11 @@ export default function ReviewPage() {
             <p className="font-medium">Optional reflection</p>
             <p className="opacity-80">This doesn't affect your analytics or streaks. It's just for you.</p>
           </div>
+        </motion.div>
+
+        {/* Weekly Summary Metrics */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
+          <ReviewWeeklySummary />
         </motion.div>
 
         {/* AI Insight Button */}
