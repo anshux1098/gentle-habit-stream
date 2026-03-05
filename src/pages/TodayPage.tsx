@@ -7,6 +7,8 @@ import { HabitItem } from '@/components/HabitItem';
 import { AddHabitForm } from '@/components/AddHabitForm';
 import { ProgressRing } from '@/components/ProgressRing';
 import { StatCard } from '@/components/StatCard';
+import { DailyProgressBar } from '@/components/DailyProgressBar';
+import { StreakBanner } from '@/components/StreakBanner';
 import { MomentumSignalCard } from '@/components/MomentumSignalCard';
 import { BurnoutIndicatorCard } from '@/components/BurnoutIndicatorCard';
 import { ReflectionInput, type ReflectionContext } from '@/components/ReflectionInput';
@@ -221,6 +223,12 @@ export default function TodayPage() {
             variant="streak"
           />
         </motion.div>
+
+        {/* Streak Banner */}
+        <StreakBanner />
+
+        {/* Daily Progress Bar */}
+        <DailyProgressBar />
 
         {/* Habit List */}
         <motion.section

@@ -99,12 +99,14 @@ export function HabitItem({
               : "border-pending bg-transparent hover:border-success/50"
           )}
           whileTap={!readOnly ? { scale: 0.9 } : undefined}
+          animate={isCompleted ? { scale: [1, 1.25, 1] } : { scale: 1 }}
+          transition={isCompleted ? { duration: 0.35, ease: "easeOut" } : undefined}
         >
           {isCompleted && (
             <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              initial={{ scale: 0, rotate: -45 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 500, damping: 25 }}
             >
               <Check className="w-4 h-4 text-success-foreground" strokeWidth={3} />
             </motion.div>
