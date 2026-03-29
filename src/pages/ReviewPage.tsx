@@ -40,7 +40,7 @@ export default function ReviewPage() {
   );
   
   const today = getEffectiveDate();
-  const isSundayDay = isSunday(today);
+  
   const existingReview = getCurrentReview();
   const existingInsight = getCurrentWeeklyInsight();
 
@@ -87,27 +87,8 @@ export default function ReviewPage() {
   const [, month, day] = today.split('-');
   const dayNum = parseInt(day);
 
-  if (!isSundayDay) {
-    return (
-      <Layout>
-        <div className="space-y-6">
-          <motion.header initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-1">
-            <h1 className="text-2xl font-bold text-foreground">Weekly Review</h1>
-            <p className="text-muted-foreground">{getDayName(today)}, {getMonthName(today, true)} {dayNum}</p>
-          </motion.header>
-          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.1 }} className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-            <div className="p-4 rounded-full bg-muted">
-              <BookOpen className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-lg font-semibold text-foreground">Come Back on Sunday</h2>
-              <p className="text-muted-foreground max-w-xs">The weekly review is available on Sundays to help you reflect on your week and plan ahead.</p>
-            </div>
-          </motion.div>
-        </div>
-      </Layout>
-    );
-  }
+
+
 
   return (
     <Layout>
