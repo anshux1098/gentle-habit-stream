@@ -130,6 +130,9 @@ export function HabitItem({
         )}>
           {habit.name}
         </span>
+        {habit.motivation && (
+          <p className="text-xs text-muted-foreground italic truncate">{habit.motivation}</p>
+        )}
 
         {/* Streak badge — strict mode */}
         {!isPaused && !isGoalMode && streak > 0 && (
