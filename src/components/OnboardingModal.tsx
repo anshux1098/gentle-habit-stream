@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, TrendingUp, Zap, X } from 'lucide-react';
+import { Sparkles, TrendingUp, Zap, X, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useHabits } from '@/contexts/HabitContext';
 
 const ONBOARDING_KEY = 'habit-flow-onboarded';
+
+const HABIT_TEMPLATES = [
+  'Morning walk',
+  'Read 30 mins',
+  'Drink 8 glasses of water',
+  'No phone before 9am',
+  'Sleep by 11pm',
+  '10 mins meditation',
+];
 
 interface Props {
   hasHabits: boolean;
@@ -15,7 +25,9 @@ interface Props {
  * Stored in localStorage under ONBOARDING_KEY.
  */
 export function OnboardingModal({ hasHabits, onAddFirstHabit }: Props) {
+  const { addHabit } = useHabits();
   const [visible, setVisible] = useState(false);
+  const [addedTemplates, setAddedTemplates] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     // Show only if user has never seen it AND has no habits
@@ -119,6 +131,34 @@ export function OnboardingModal({ hasHabits, onAddFirstHabit }: Props) {
                     </div>
                   </li>
                 </ul>
+
+                {/* Habit Templates */}
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-muted-foreground">Quick start — tap to add:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {HABIT_TEMPLATES.map((template) => {
+                      const isAdded = addedTemplates.has(template);
+                      return (
+                        <button
+                          key={template}
+                          disabled={isAdded}
+                          onClick={() => {
+                            addHabit(template, 'daily', undefined, 'strict');
+                            setAddedTemplates((prev) => new Set(prev).add(template));
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                            isAdded
+                              ? 'bg-primary/10 border-primary/30 text-primary cursor-default'
+                              : 'bg-muted border-border text-foreground hover:bg-accent hover:border-accent-foreground/20'
+                          }`}
+                        >
+                          {isAdded && <Check className="w-3 h-3" />}
+                          {template}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
 
                 {/* CTA */}
                 <Button onClick={handleCTA} className="w-full" size="lg">
