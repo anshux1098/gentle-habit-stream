@@ -163,6 +163,7 @@ export function useHabitData() {
         reminderTime: h.reminder_time,
         streakMode: h.streak_mode,
         weeklyTarget: h.weekly_target ?? undefined,
+        motivation: h.motivation ?? undefined,
         pausedAt: h.is_paused ? new Date().toISOString() : undefined
       }));
 
@@ -197,7 +198,8 @@ export function useHabitData() {
     type: Habit['type'],
     reminderTime?: string,
     streakMode?: Habit['streakMode'],
-    weeklyTarget?: number
+    weeklyTarget?: number,
+    motivation?: string
   ) => {
 
     const { data: { user } } = await supabase.auth.getUser();
@@ -211,7 +213,8 @@ export function useHabitData() {
         reminder_time: reminderTime ?? null,
         streak_mode: streakMode ?? "strict",
         weekly_target: weeklyTarget ?? null,
-        user_id: user.id,   // THIS IS REQUIRED
+        motivation: motivation ?? null,
+        user_id: user.id,
         is_paused: false,
       }])
       .select()
@@ -233,6 +236,7 @@ export function useHabitData() {
       reminderTime: h.reminder_time,
       streakMode: h.streak_mode,
       weeklyTarget: h.weekly_target ?? undefined,
+      motivation: h.motivation ?? undefined,
     };
 
     // Optimistic: immediately add to state
@@ -252,6 +256,7 @@ export function useHabitData() {
         reminder_time: updates.reminderTime,
         streak_mode: updates.streakMode,
         weekly_target: updates.weeklyTarget ?? null,
+        motivation: updates.motivation !== undefined ? (updates.motivation || null) : undefined,
       })
       .eq("id", id);
 

@@ -23,6 +23,7 @@ export function AddHabitForm({ onClose, className }: AddHabitFormProps) {
   const [reminderTime, setReminderTime] = useState('');
   const [streakMode, setStreakMode] = useState<StreakMode>('strict');
   const [weeklyTarget, setWeeklyTarget] = useState(5);
+  const [motivation, setMotivation] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -34,13 +35,15 @@ export function AddHabitForm({ onClose, className }: AddHabitFormProps) {
       type,
       reminderTime || undefined,
       streakMode,
-      streakMode === 'goal' ? weeklyTarget : undefined
+      streakMode === 'goal' ? weeklyTarget : undefined,
+      motivation.trim() || undefined
     );
     setName('');
     setType('daily');
     setReminderTime('');
     setStreakMode('strict');
     setWeeklyTarget(5);
+    setMotivation('');
     setIsExpanded(false);
     onClose?.();
   };
@@ -51,6 +54,7 @@ export function AddHabitForm({ onClose, className }: AddHabitFormProps) {
     setReminderTime('');
     setStreakMode('strict');
     setWeeklyTarget(5);
+    setMotivation('');
     setIsExpanded(false);
     onClose?.();
   };
@@ -106,6 +110,17 @@ export function AddHabitForm({ onClose, className }: AddHabitFormProps) {
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g., Morning meditation"
             autoFocus
+            className="bg-background"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="habit-motivation" className="text-sm text-muted-foreground">Your reason</Label>
+          <Input
+            id="habit-motivation"
+            value={motivation}
+            onChange={(e) => setMotivation(e.target.value)}
+            placeholder="Why this habit? (optional)"
             className="bg-background"
           />
         </div>

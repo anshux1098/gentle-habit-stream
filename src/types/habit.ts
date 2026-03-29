@@ -14,6 +14,7 @@ export interface Habit {
   reminderTime?: string; // HH:MM format
   streakMode?: StreakMode; // defaults to 'strict' for backward compatibility
   weeklyTarget?: number; // only used when streakMode === 'goal'; e.g. 5 means 5 out of 7 days
+  motivation?: string; // optional "why" — user's reason for this habit
 }
 
 export interface Completion {

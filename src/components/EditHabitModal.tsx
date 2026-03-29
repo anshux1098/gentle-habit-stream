@@ -28,6 +28,7 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
   const [reminderTime, setReminderTime] = useState(habit.reminderTime || '');
   const [streakMode, setStreakMode] = useState<StreakMode>(habit.streakMode ?? 'strict');
   const [weeklyTarget, setWeeklyTarget] = useState(habit.weeklyTarget ?? 5);
+  const [motivation, setMotivation] = useState(habit.motivation || '');
 
   // Reset form when habit changes
   const handleOpenChange = (isOpen: boolean) => {
@@ -37,6 +38,7 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
       setReminderTime(habit.reminderTime || '');
       setStreakMode(habit.streakMode ?? 'strict');
       setWeeklyTarget(habit.weeklyTarget ?? 5);
+      setMotivation(habit.motivation || '');
     }
     onOpenChange(isOpen);
   };
@@ -67,6 +69,9 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
       updates.streakMode = streakMode;
       updates.weeklyTarget = streakMode === 'goal' ? weeklyTarget : undefined;
     }
+    if (motivation !== (habit.motivation || '')) {
+      updates.motivation = motivation || undefined;
+    }
 
     if (Object.keys(updates).length > 0) {
       onSave(updates, scheduleChanged);
@@ -79,7 +84,8 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
     type !== habit.type ||
     reminderTime !== (habit.reminderTime || '') ||
     streakMode !== (habit.streakMode ?? 'strict') ||
-    (streakMode === 'goal' && weeklyTarget !== (habit.weeklyTarget ?? 5));
+    (streakMode === 'goal' && weeklyTarget !== (habit.weeklyTarget ?? 5)) ||
+    motivation !== (habit.motivation || '');
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -189,6 +195,17 @@ export function EditHabitModal({ habit, open, onOpenChange, onSave }: EditHabitM
                 </p>
               </motion.div>
             )}
+          </div>
+
+          {/* Motivation */}
+          <div className="space-y-2">
+            <Label htmlFor="edit-motivation" className="text-sm text-muted-foreground">Your reason</Label>
+            <Input
+              id="edit-motivation"
+              value={motivation}
+              onChange={(e) => setMotivation(e.target.value)}
+              placeholder="Why this habit? (optional)"
+            />
           </div>
 
           {/* Reminder Time */}
