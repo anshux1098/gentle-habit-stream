@@ -1,6 +1,6 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, TrendingUp, Sparkles, ChevronDown } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ChevronDown, X } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { HabitList } from '@/components/HabitList';
 import { HabitItem } from '@/components/HabitItem';
@@ -53,6 +53,7 @@ export default function TodayPage() {
     habits,
     completions,
     getHabitsForDate, 
+    getCompletion,
     getDailyCompletionPercentage,
     getWeeklyAverage,
     getHighestStreak,
@@ -164,6 +165,22 @@ export default function TodayPage() {
   const highestStreak = getHighestStreak();
   const showTomorrowPreview = isAfter8PM();
 
+  // Overdue habit nudge
+  const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
+
+  const overdueHabits = useMemo(() => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    return todayHabits.filter(h => {
+      if (!h.reminderTime) return false;
+      if (dismissedNudges.has(h.id)) return false;
+      const [hh, mm] = h.reminderTime.split(':').map(Number);
+      const reminderMinutes = hh * 60 + mm;
+      if (currentMinutes <= reminderMinutes) return false;
+      return !getCompletion(h.id, today);
+    });
+  }, [todayHabits, dismissedNudges, getCompletion, today]);
+
   // Parse date for display
   const [year, month, day] = today.split('-');
   const dayNum = parseInt(day);
@@ -229,6 +246,33 @@ export default function TodayPage() {
 
         {/* Daily Progress Bar */}
         <DailyProgressBar />
+
+        {/* Overdue Habit Nudge Banner */}
+        <AnimatePresence>
+          {overdueHabits.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="rounded-xl border border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-800 p-3 space-y-1"
+            >
+              {overdueHabits.map(h => (
+                <div key={h.id} className="flex items-center justify-between text-sm">
+                  <span className="text-yellow-800 dark:text-yellow-200">
+                    ⏰ {h.name} was due at {h.reminderTime}
+                  </span>
+                  <button
+                    onClick={() => setDismissedNudges(prev => new Set(prev).add(h.id))}
+                    className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-200 p-0.5"
+                    aria-label={`Dismiss ${h.name} nudge`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Habit List */}
         <motion.section
