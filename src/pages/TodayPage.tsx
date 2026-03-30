@@ -247,6 +247,33 @@ export default function TodayPage() {
         {/* Daily Progress Bar */}
         <DailyProgressBar />
 
+        {/* Overdue Habit Nudge Banner */}
+        <AnimatePresence>
+          {overdueHabits.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="rounded-xl border border-yellow-200 bg-yellow-50 dark:bg-yellow-950/30 dark:border-yellow-800 p-3 space-y-1"
+            >
+              {overdueHabits.map(h => (
+                <div key={h.id} className="flex items-center justify-between text-sm">
+                  <span className="text-yellow-800 dark:text-yellow-200">
+                    ⏰ {h.name} was due at {h.reminderTime}
+                  </span>
+                  <button
+                    onClick={() => setDismissedNudges(prev => new Set(prev).add(h.id))}
+                    className="text-yellow-600 dark:text-yellow-400 hover:text-yellow-800 dark:hover:text-yellow-200 p-0.5"
+                    aria-label={`Dismiss ${h.name} nudge`}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Habit List */}
         <motion.section
           initial={{ opacity: 0, y: 10 }}
