@@ -53,6 +53,7 @@ export default function TodayPage() {
     habits,
     completions,
     getHabitsForDate, 
+    getCompletion,
     getDailyCompletionPercentage,
     getWeeklyAverage,
     getHighestStreak,
