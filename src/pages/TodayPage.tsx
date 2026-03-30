@@ -1,6 +1,6 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, TrendingUp, Sparkles, ChevronDown } from 'lucide-react';
+import { Calendar, TrendingUp, Sparkles, ChevronDown, X } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { HabitList } from '@/components/HabitList';
 import { HabitItem } from '@/components/HabitItem';
