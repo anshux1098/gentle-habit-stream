@@ -165,6 +165,22 @@ export default function TodayPage() {
   const highestStreak = getHighestStreak();
   const showTomorrowPreview = isAfter8PM();
 
+  // Overdue habit nudge
+  const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
+
+  const overdueHabits = useMemo(() => {
+    const now = new Date();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    return todayHabits.filter(h => {
+      if (!h.reminderTime) return false;
+      if (dismissedNudges.has(h.id)) return false;
+      const [hh, mm] = h.reminderTime.split(':').map(Number);
+      const reminderMinutes = hh * 60 + mm;
+      if (currentMinutes <= reminderMinutes) return false;
+      return !getCompletion(h.id, today);
+    });
+  }, [todayHabits, dismissedNudges, getCompletion, today]);
+
   // Parse date for display
   const [year, month, day] = today.split('-');
   const dayNum = parseInt(day);
